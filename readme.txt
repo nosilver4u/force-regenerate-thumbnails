@@ -47,7 +47,7 @@ See the [screenshots tab](http://wordpress.org/extend/plugins/force-regenerate-t
 = 2.0.1 =
 * Fix issue with get_option('upload_path') in Wordpress 3.5+ (thanks @DavidLingren)
 
-= 2.0.0 = 
+= 2.0.0 =
 * Fix error handle
 
 = 1.8 =
@@ -63,7 +63,7 @@ See the [screenshots tab](http://wordpress.org/extend/plugins/force-regenerate-t
 * Reviewed some messages
 
 = 1.4 =
-* Change default image editor to GB in Wordpress 3.5+ (thanks @nikcree)
+* Change default image editor to GD in Wordpress 3.5+ (thanks @nikcree)
 
 = 1.3 =
 * Fix message error when WP_DEBUG in wp_config.php
@@ -73,7 +73,7 @@ See the [screenshots tab](http://wordpress.org/extend/plugins/force-regenerate-t
 
 = 1.1 =
 * Delete all custom image sizes when regenerate thumbnails
-* Notifies you when thumbnails was deleted 
+* Notifies you when thumbnails was deleted
 
 = 1.0 =
 * First release.
