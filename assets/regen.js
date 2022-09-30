@@ -13,6 +13,7 @@ jQuery(document).ready(function($){
 	var rt_totaltime = 0;
 	var rt_continue = true;
 
+        $("#regenthumbs-debug-totalcount").html(regen_thumbs.image_count);
 	// Create the progress bar
 	$("#regenthumbs-bar").progressbar();
 	$("#regenthumbs-bar-percent").html("0%");
@@ -25,6 +26,7 @@ jQuery(document).ready(function($){
 
 	// Clear out the empty list element that's there for HTML validation purposes
 	$("#regenthumbs-debuglist li").remove();
+	$("#regenthumbs-debuglist").hide();
 
 	// Called after each resize. Updates debug information and the progress bar.
 	function RegenThumbsUpdateStatus(id, success, response) {
@@ -43,9 +45,9 @@ jQuery(document).ready(function($){
 			$("#regenthumbs-debug-failurecount").html(rt_errors);
 			$("#regenthumbs-debuglist").append("<li>" + response.error + "</li>");
 		}
+                $("#regenthumbs-debuglist").show();
 	}
 
-        // TODO: no longer update the full HTML, just change the URL for the 'retry' button.
 	// Called when all images have been processed. Shows the results and cleans up.
 	function RegenThumbsFinishUp() {
 		rt_timeend = new Date().getTime();
@@ -54,8 +56,8 @@ jQuery(document).ready(function($){
 		$('#regenthumbs-stop').hide();
 
 		if (rt_errors > 0 && rt_failedlist ) {
-                        $("#frt-retry-images").href = $("#frt-retry-images").href + '&' + rt_failedlist;
-                        $("#frt-retry-images").show();
+                        $("#frt-retry-images").prop('href', $("#frt-retry-images").prop('href') + '&ids=' + rt_failedlist );
+                        $("#frt-retry-container").show();
 		}
 
 		$("#frt-message").show();
@@ -89,8 +91,9 @@ jQuery(document).ready(function($){
 					RegenThumbsFinishUp();
 				}
 			},
-			error: function(response) {
-				RegenThumbsUpdateStatus(id, false, response);
+			error: function(request,response,error) {
+                                var error_response = { error: response + ': ' + request.status + ' ' + error };
+				RegenThumbsUpdateStatus(id, false, error_response);
 
 				if (rt_images.length && rt_continue) {
 					RegenThumbs(rt_images.shift());

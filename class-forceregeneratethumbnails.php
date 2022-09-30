@@ -7,9 +7,8 @@
  */
 
 // TODO: include updates from forks.
-// TODO: improve wording for bulk page.
+// TODO: support PDFs (possibly some code from a fork).
 // TODO: add lots of action hooks.
-// TODO: figure out why a failure dumps JS code?
 
 /**
  * Force Regenerate Thumbnails
@@ -43,7 +42,7 @@ class ForceRegenerateThumbnails {
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 206.02;
+	const VERSION = 206.056;
 
 	/**
 	 * Plugin initialization
@@ -112,17 +111,16 @@ class ForceRegenerateThumbnails {
 			if (
 				! empty( $_REQUEST['ids'] ) &&
 				(
-					preg_match( '/^[\d,]+$/', sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ), $request_ids ) ||
-					is_numeric( sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ) )
+					preg_match( '/^[\d,]+$/', trim( sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ), ',' ), $request_ids ) ||
+					is_numeric( trim( sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ), ',' ) )
 				)
 			) {
-				if ( is_numeric( sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ) ) ) {
+				if ( is_numeric( trim( sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ), ',' ) ) ) {
 					$images[] = (int) $_REQUEST['ids'];
 				} else {
 					$images = explode( ',', $request_ids[0] );
 					array_walk( $images, 'intval' );
 				}
-				// $images = array_map( 'intval', explode( ',', trim( $_REQUEST['ids'], ',' ) ) );
 				$ids = implode( ',', $images );
 			} else {
 
@@ -164,11 +162,20 @@ class ForceRegenerateThumbnails {
 	 * @since 1.0
 	 */
 	function add_media_row_action( $actions, $post ) {
-		// TODO: get current URI for the goback param.
 		if ( 'image/' === substr( $post->post_mime_type, 0, 6 ) && current_user_can( $this->capability ) ) {
-			$url = wp_nonce_url( admin_url( 'tools.php?page=force-regenerate-thumbnails&goback=1&ids=' . $post->ID ), 'force-regenerate-thumbnails' );
+			$url = wp_nonce_url(
+				add_query_arg(
+					array(
+						'page'   => 'force-regenerate-thumbnails',
+						'goback' => add_query_arg( null, null ),
+						'ids'    => (int) $post->ID,
+					),
+					admin_url( 'tools.php' ),
+				),
+				'force-regenerate-thumbnails'
+			);
 
-			$actions['regenerate_thumbnails'] = '<a href="' . esc_url( $url ) . '" title="' . esc_attr( __( 'Regenerate the thumbnails for this single image', 'force-regenerate-thumbnails' ) ) . '">' . __( 'Force Regenerate Thumbnails', 'force-regenerate-thumbnails' ) . '</a>';
+			$actions['regenerate_thumbnails'] = '<a href="' . esc_url( $url ) . '" title="' . esc_attr__( 'Regenerate the thumbnails for this single image', 'force-regenerate-thumbnails' ) . '">' . __( 'Force Regenerate Thumbnails', 'force-regenerate-thumbnails' ) . '</a>';
 		}
 
 		return $actions;
@@ -197,26 +204,6 @@ class ForceRegenerateThumbnails {
 		}
 
 		return $actions;
-	}
-
-	/**
-	 * Add new items to the Bulk Actions using Javascript
-	 *
-	 * @access public
-	 * @since 1.0
-	 */
-	function add_bulk_actions_via_javascript() {
-
-		if ( ! current_user_can( $this->capability ) ) {
-			return;
-		}
-		?>
-		<script type="text/javascript">
-			jQuery(document).ready(function($){
-				$('select[name^="action"] option:last-child').before('<option value="bulk_force_regenerate_thumbnails"><?php echo esc_attr( __( 'Force Regenerate Thumbnails', 'force-regenerate-thumbnails' ) ); ?></option>');
-			});
-		</script>
-		<?php
 	}
 
 	/**
@@ -275,7 +262,9 @@ class ForceRegenerateThumbnails {
 			<a href=<?php echo '"' . esc_url( sanitize_url( wp_unslash( $_GET['goback'] ) ) ) . '"'; ?>><?php esc_html_e( 'Go back to the previous page.', 'force-regenerate-thumbnails' ); ?></a>
 		<?php endif; ?>
 	</p>
-	<a id="frt-retry-images" style="display:none" href="<?php echo esc_url( $retry_url ); ?>" class="button-secondary"><?php esc_html_e( 'Retry Failed Images', 'force-regenerate-thumbnails' ); ?></a>
+	<p id="frt-retry-container" style="display:none">
+		<a id="frt-retry-images" href="<?php echo esc_url( $retry_url ); ?>" class="button-secondary"><?php esc_html_e( 'Retry Failed Images', 'force-regenerate-thumbnails' ); ?></a>
+	</p>
 </div>
 
 <div class="wrap regenthumbs">
@@ -295,7 +284,7 @@ class ForceRegenerateThumbnails {
 
 			?>
 
-	<p><?php esc_html_e( 'Please be patient while the thumbnails are regenerated. You will be notified via this page when the regenerating is completed.', 'force-regenerate-thumbnails' ); ?></p>
+	<p><?php esc_html_e( 'Please be patient while the thumbnails are regenerated. Details will be displayed below as each image is completed.', 'force-regenerate-thumbnails' ); ?></p>
 
 	<noscript><p><em><?php esc_html_e( 'You must enable Javascript in order to proceed!', 'force-regenerate-thumbnails' ); ?></em></p></noscript>
 
@@ -333,7 +322,10 @@ class ForceRegenerateThumbnails {
 
 		<h3><?php esc_html_e( 'All Thumbnails', 'force-regenerate-thumbnails' ); ?></h3>
 
-		<p><?php esc_html_e( 'Pressing the follow button, you can regenerate thumbnails for all images that you have uploaded to your blog.', 'force-regenerate-thumbnails' ); ?></p>
+		<p>
+			<?php esc_html_e( 'You may regenerate thumbnails for all images that you have uploaded to your blog.', 'force-regenerate-thumbnails' ); ?><br>
+			<?php esc_html_e( 'Be sure to backup your site before you begin.', 'force-regenerate-thumbnails' ); ?>
+		</p>
 
 		<p>
 			<noscript><p><em><?php esc_html_e( 'You must enable Javascript in order to proceed!', 'force-regenerate-thumbnails' ); ?></em></p></noscript>
@@ -343,8 +335,11 @@ class ForceRegenerateThumbnails {
 		</br>
 		<h3><?php esc_html_e( 'Specific Thumbnails', 'force-regenerate-thumbnails' ); ?></h3>
 
+		<p>
 			<?php /* translators: %s: Media Library (link) */ ?>
-		<p><?php printf( esc_html__( 'You may regenerate thumbnails for specific images from the %s in List mode.', 'force-regenerate-thumbnails' ), '<a href="' . esc_url( admin_url( 'upload.php?mode=list' ) ) . '">' . esc_html__( 'Media Library', 'force-regenerate-thumbnails' ) . '</a>' ); ?></p>
+			<?php printf( esc_html__( 'You may regenerate thumbnails for specific images from the %s in List mode.', 'force-regenerate-thumbnails' ), '<a href="' . esc_url( admin_url( 'upload.php?mode=list' ) ) . '">' . esc_html__( 'Media Library', 'force-regenerate-thumbnails' ) . '</a>' ); ?>
+			<?php esc_html_e( 'Be sure to backup your site before you begin.', 'force-regenerate-thumbnails' ); ?>
+		</p>
 	</form>
 			<?php
 		} // End if button

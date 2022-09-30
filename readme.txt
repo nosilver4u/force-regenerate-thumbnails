@@ -1,8 +1,10 @@
 === Force Regenerate Thumbnails ===
 Contributors: Pedro Elsner
-Requires at least: 2.8
-Tested up to: 4.0
-Stable tag: trunk
+Requires at least: 5.8
+Tested up to: 6.1
+Requires PHP: 7.2
+Stable tag: 2.0.6
+License: GPLv3
 Tags: force, regenerate thumbnails, thumbnail, thumbnails
 
 Delete and REALLY force the regenerate thumbnail.
@@ -26,6 +28,15 @@ See the [screenshots tab](http://wordpress.org/extend/plugins/force-regenerate-t
 2. You can resize specific multiples images using the checkboxes and the "Bulk Actions" dropdown
 
 == ChangeLog ==
+
+= 2.1.0 =
+* added: PHP 8.0 compatibility
+* added: support generating thumbnails from original (pre-scaled), on by default
+* changed: escape all output, sanitize all input
+* changed: ensure all strings are i18n
+* changed: remove HTML from i18n strings
+* changed: improve path lookup function
+* fixed: call to set_time_limit() when it is not allowed
 
 = 2.0.6 =
 * Add PHP7 compatibility
