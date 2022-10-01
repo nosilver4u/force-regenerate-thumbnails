@@ -32,6 +32,8 @@ See the [screenshots tab](http://wordpress.org/extend/plugins/force-regenerate-t
 = 2.1.0 =
 * added: PHP 8.0 compatibility
 * added: support generating thumbnails from original (pre-scaled), on by default
+* added: support for PDF thumbnail generation
+* added: ability to skip an image by regenerate_thumbs_skip_image filter
 * changed: escape all output, sanitize all input
 * changed: ensure all strings are i18n
 * changed: remove HTML from i18n strings

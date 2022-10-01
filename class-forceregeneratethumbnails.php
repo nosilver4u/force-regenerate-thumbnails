@@ -6,10 +6,6 @@
  * @package ForceRegenerateThumbnails
  */
 
-// TODO: include updates from forks.
-// TODO: support PDFs (possibly some code from a fork).
-// TODO: add lots of action hooks.
-
 /**
  * Force Regenerate Thumbnails
  *
@@ -92,6 +88,8 @@ class ForceRegenerateThumbnails {
 			return;
 		}
 
+		global $wpdb;
+
 		wp_enqueue_style( 'jquery-ui-regenthumbs', plugins_url( 'jquery-ui/redmond/jquery-ui-1.7.2.custom.css', __FILE__ ), array(), self::VERSION );
 		wp_enqueue_style( 'force-regen-style', plugins_url( 'assets/style.css', __FILE__ ), array(), self::VERSION );
 		wp_enqueue_script( 'force-regen-script', plugins_url( 'assets/regen.js', __FILE__ ), array( 'jquery-ui-progressbar' ), self::VERSION );
@@ -116,7 +114,7 @@ class ForceRegenerateThumbnails {
 				)
 			) {
 				if ( is_numeric( trim( sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ), ',' ) ) ) {
-					$images[] = (int) $_REQUEST['ids'];
+					$images[] = (int) trim( sanitize_text_field( wp_unslash( $_REQUEST['ids'] ) ), ',' );
 				} else {
 					$images = explode( ',', $request_ids[0] );
 					array_walk( $images, 'intval' );
@@ -127,16 +125,19 @@ class ForceRegenerateThumbnails {
 				// Directly querying the database is normally frowned upon, but all
 				// of the API functions will return the full post objects which will
 				// suck up lots of memory. This is best, just not as future proof.
-				$images = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND (post_mime_type LIKE '%%image%%' OR post_mime_type LIKE '%%pdf%%') ORDER BY ID DESC" );
+				if ( extension_loaded( 'imagick' ) ) {
+					$images = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND (post_mime_type LIKE '%%image%%' OR post_mime_type LIKE '%%pdf%%') ORDER BY ID DESC" );
+				} else {
+					$images = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND post_mime_type LIKE '%%image%%' ORDER BY ID DESC" );
+				}
 				if ( empty( $images ) ) {
-					echo '<p>' . esc_html__( 'You do not appear to have uploaded any images yet.', 'force-regenerate-thumbnails' ) . '</p></div>';
 					return;
 				}
 
 				$ids = implode( ',', $images );
 			}
 
-			$count = count( $images );
+			$this->image_count = count( $images );
 
 			wp_localize_script(
 				'force-regen-script',
@@ -144,7 +145,7 @@ class ForceRegenerateThumbnails {
 				array(
 					'_wpnonce'      => wp_create_nonce( 'force-regenerate-attachment' ),
 					'image_ids'     => $images,
-					'image_count'   => $count,
+					'image_count'   => $this->image_count,
 					'stopping'      => esc_html__( 'Stopping...', 'force-regenerate-thumbnails' ),
 					'unknown_error' => esc_html__( 'Unknown error occured.', 'force-regenerate-thumbnails' ),
 				)
@@ -162,7 +163,13 @@ class ForceRegenerateThumbnails {
 	 * @since 1.0
 	 */
 	function add_media_row_action( $actions, $post ) {
-		if ( 'image/' === substr( $post->post_mime_type, 0, 6 ) && current_user_can( $this->capability ) ) {
+		if ( 'application/pdf' === $post->post_mime_type && ! extension_loaded( 'imagick' ) ) {
+			return $actions;
+		}
+		if (
+			( 'application/pdf' === $post->post_mime_type || 'image/' === substr( $post->post_mime_type, 0, 6 ) ) &&
+			current_user_can( $this->capability )
+		) {
 			$url = wp_nonce_url(
 				add_query_arg(
 					array(
@@ -248,8 +255,6 @@ class ForceRegenerateThumbnails {
 	 * @since 1.0
 	 */
 	function force_regenerate_interface() {
-
-		global $wpdb;
 		$retry_url = wp_nonce_url(
 			admin_url( 'tools.php?page=force-regenerate-thumbnails' ),
 			'force-regenerate-thumbnails'
@@ -281,7 +286,10 @@ class ForceRegenerateThumbnails {
 
 			// Form nonce check.
 			check_admin_referer( 'force-regenerate-thumbnails' );
-
+			if ( empty( $this->image_count ) ) {
+				echo '<p>' . esc_html__( 'You do not appear to have uploaded any images or PDF files yet.', 'force-regenerate-thumbnails' ) . '</p></div>';
+				return;
+			}
 			?>
 
 	<p><?php esc_html_e( 'Please be patient while the thumbnails are regenerated. Details will be displayed below as each image is completed.', 'force-regenerate-thumbnails' ); ?></p>
@@ -373,24 +381,33 @@ class ForceRegenerateThumbnails {
 		$id = (int) $_REQUEST['id'];
 
 		try {
+			header( 'Content-type: application/json' );
 			if ( ! current_user_can( $this->capability ) ) {
-				throw new Exception( esc_html__( 'Your user account does not have permission to regenerate images.', 'force-regenerate-thumbnails' ) );
+				throw new Exception( esc_html__( 'Your user account does not have permission to regenerate thumbnails.', 'force-regenerate-thumbnails' ) );
 			}
 			if ( empty( $_REQUEST['frt_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_REQUEST['frt_wpnonce'] ), 'force-regenerate-attachment' ) ) {
 				throw new Exception( esc_html__( 'Access token has expired, please reload the page.', 'force-regenerate-thumbnails' ) );
 			}
 
-			header( 'Content-type: application/json' );
+			if ( apply_filters( 'regenerate_thumbs_skip_image', false, $id ) ) {
+				/* translators: %d: attachment ID number */
+				throw new Exception( sprintf( esc_html__( 'Skipped: %d.', 'force-regenerate-thumbnails' ), (int) $id ) );
+			}
+
 			$image = get_post( $id );
 
 			if ( is_null( $image ) ) {
 				/* translators: %d: attachment ID number */
-				throw new Exception( sprintf( esc_html__( 'Failed: %d is an invalid image ID.', 'force-regenerate-thumbnails' ), (int) $id ) );
+				throw new Exception( sprintf( esc_html__( 'Failed: %d is an invalid media ID.', 'force-regenerate-thumbnails' ), (int) $id ) );
 			}
 
-			if ( 'attachment' !== $image->post_type || 'image/' !== substr( $image->post_mime_type, 0, 6 ) ) {
+			if ( 'attachment' !== $image->post_type || ( 'image/' !== substr( $image->post_mime_type, 0, 6 ) && 'application/pdf' !== $image->post_mime_type ) ) {
 				/* translators: %d: attachment ID number */
-				throw new Exception( sprintf( esc_html__( 'Failed: %d is an invalid image ID.', 'force-regenerate-thumbnails' ), (int) $id ) );
+				throw new Exception( sprintf( esc_html__( 'Failed: %d is an invalid media ID.', 'force-regenerate-thumbnails' ), (int) $id ) );
+			}
+
+			if ( 'application/pdf' === $image->post_mime_type && ! extension_loaded( 'imagick' ) ) {
+				throw new Exception( esc_html__( 'Failed: The imagick extension is required for PDF files.', 'force-regenerate-thumbnails' ) );
 			}
 
 			$upload_dir = wp_get_upload_dir();
@@ -427,11 +444,13 @@ class ForceRegenerateThumbnails {
 					}
 					$thumb_fullpath = trailingslashit( $file_info['dirname'] ) . wp_basename( $size_data['file'] );
 					if ( is_file( $thumb_fullpath ) ) {
+						do_action( 'regenerate_thumbs_pre_delete', $thumb_fullpath );
 						unlink( $thumb_fullpath );
 						if ( is_file( $thumb_fullpath . '.webp' ) ) {
 							unlink( $thumb_fullpath . '.webp' );
 						}
 						clearstatcache();
+						do_action( 'regenerate_thumbs_post_delete', $thumb_fullpath );
 						if ( ! is_file( $thumb_fullpath ) ) {
 							$thumb_deleted[] = sprintf( '%dx%d', $size_data['width'], $size_data['height'] );
 						} else {
@@ -465,11 +484,13 @@ class ForceRegenerateThumbnails {
 					$dimension_thumb = explode( 'x', $valid_thumb[1] );
 					if ( 2 === count( $dimension_thumb ) ) {
 						if ( is_numeric( $dimension_thumb[0] ) && is_numeric( $dimension_thumb[1] ) ) {
+							do_action( 'regenerate_thumbs_pre_delete', $thumb_fullpath );
 							unlink( $thumb_fullpath );
 							if ( is_file( $thumb_fullpath . '.webp' ) ) {
 								unlink( $thumb_fullpath . '.webp' );
 							}
 							clearstatcache();
+							do_action( 'regenerate_thumbs_post_delete', $thumb_fullpath );
 							if ( ! is_file( $thumb_fullpath ) ) {
 								$thumb_deleted[] = sprintf( '%dx%d', $dimension_thumb[0], $dimension_thumb[1] );
 							} else {
@@ -483,7 +504,7 @@ class ForceRegenerateThumbnails {
 			/**
 			 * Regenerate all thumbnails
 			 */
-			$original_path = apply_filters( 'regenerate_thumbnails_original_image', wp_get_original_image_path( $image->ID, true ) );
+			$original_path = apply_filters( 'regenerate_thumbs_original_image', wp_get_original_image_path( $image->ID, true ) );
 			if ( empty( $original_path ) || ! is_file( $original_path ) ) {
 				$original_path = $image_fullpath;
 			}
@@ -496,6 +517,7 @@ class ForceRegenerateThumbnails {
 				throw new Exception( esc_html__( 'Unknown failure.', 'force-regenerate-thumbnails' ) );
 			}
 			wp_update_attachment_metadata( $image->ID, $metadata );
+			do_action( 'regenerate_thumbs_post_update', $image->ID, $original_path );
 
 			/**
 			 * Verify results (deleted, errors, success)
