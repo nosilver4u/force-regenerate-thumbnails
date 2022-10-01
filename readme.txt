@@ -4,7 +4,7 @@ Requires at least: 5.8
 Tested up to: 6.1
 Requires PHP: 7.2
 Stable tag: 2.0.6
-License: GPLv3
+License: GPLv2
 Tags: force, regenerate thumbnails, thumbnail, thumbnails
 
 Delete and REALLY force the regenerate thumbnail.

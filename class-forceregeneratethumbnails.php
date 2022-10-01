@@ -38,7 +38,7 @@ class ForceRegenerateThumbnails {
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 206.056;
+	const VERSION = 206.061;
 
 	/**
 	 * Plugin initialization
@@ -90,7 +90,7 @@ class ForceRegenerateThumbnails {
 
 		global $wpdb;
 
-		wp_enqueue_style( 'jquery-ui-regenthumbs', plugins_url( 'jquery-ui/redmond/jquery-ui-1.7.2.custom.css', __FILE__ ), array(), self::VERSION );
+		wp_enqueue_style( 'jquery-ui-regenthumbs', plugins_url( 'assets/jquery-ui-1.10.1.custom.css', __FILE__ ), array(), self::VERSION );
 		wp_enqueue_style( 'force-regen-style', plugins_url( 'assets/style.css', __FILE__ ), array(), self::VERSION );
 		wp_enqueue_script( 'force-regen-script', plugins_url( 'assets/regen.js', __FILE__ ), array( 'jquery-ui-progressbar' ), self::VERSION );
 		// If the button was clicked.
