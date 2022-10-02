@@ -6,6 +6,8 @@
  * @package ForceRegenerateThumbnails
  */
 
+// TODO: clarify usage (Tools) page, and mention filters with link to gist (readme).
+
 /**
  * Force Regenerate Thumbnails
  *
@@ -38,7 +40,7 @@ class ForceRegenerateThumbnails {
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 206.061;
+	const VERSION = 206.063;
 
 	/**
 	 * Plugin initialization
@@ -150,6 +152,63 @@ class ForceRegenerateThumbnails {
 					'unknown_error' => esc_html__( 'Unknown error occured.', 'force-regenerate-thumbnails' ),
 				)
 			);
+			$this->get_admin_colors();
+			wp_add_inline_style( 'jquery-ui-regenthumbs', '.ui-widget-header { background-color: ' . $this->admin_color . '; }' );
+		}
+	}
+
+	/**
+	 * Grabs the color scheme information from the current admin theme.
+	 *
+	 * @global array $_wp_admin_css_colors An array of available admin color/theme objects.
+	 */
+	function get_admin_colors() {
+		if ( ! empty( $this->admin_color ) && preg_match( '/^\#([0-9a-fA-F]){3,6}$/', $this->admin_color ) ) {
+			return;
+		}
+		global $_wp_admin_css_colors;
+		if ( function_exists( 'wp_add_inline_style' ) ) {
+			$user_info = wp_get_current_user();
+			if (
+				is_array( $_wp_admin_css_colors ) &&
+				! empty( $user_info->admin_color ) &&
+				isset( $_wp_admin_css_colors[ $user_info->admin_color ] ) &&
+				is_object( $_wp_admin_css_colors[ $user_info->admin_color ] ) &&
+				is_array( $_wp_admin_css_colors[ $user_info->admin_color ]->colors ) &&
+				! empty( $_wp_admin_css_colors[ $user_info->admin_color ]->colors[2] ) &&
+				preg_match( '/^\#([0-9a-fA-F]){3,6}$/', $_wp_admin_css_colors[ $user_info->admin_color ]->colors[2] )
+			) {
+				$this->admin_color = $_wp_admin_css_colors[ $user_info->admin_color ]->colors[2];
+				return;
+			}
+			switch ( $user_info->admin_color ) {
+				case 'midnight':
+					$this->admin_color = '#e14d43';
+					break;
+				case 'blue':
+					$this->admin_color = '#096484';
+					break;
+				case 'light':
+					$this->admin_color = '#04a4cc';
+					break;
+				case 'ectoplasm':
+					$this->admin_color = '#a3b745';
+					break;
+				case 'coffee':
+					$this->admin_color = '#c7a589';
+					break;
+				case 'ocean':
+					$this->admin_color = '#9ebaa0';
+					break;
+				case 'sunrise':
+					$this->admin_color = '#dd823b';
+					break;
+				default:
+					$this->admin_color = '#0073aa';
+			}
+		}
+		if ( empty( $this->admin_color ) ) {
+			$this->admin_color = '#0073aa';
 		}
 	}
 
@@ -164,6 +223,9 @@ class ForceRegenerateThumbnails {
 	 */
 	function add_media_row_action( $actions, $post ) {
 		if ( 'application/pdf' === $post->post_mime_type && ! extension_loaded( 'imagick' ) ) {
+			return $actions;
+		}
+		if ( 'image/svg+xml' === $post->post_mime_type ) {
 			return $actions;
 		}
 		if (
@@ -297,7 +359,6 @@ class ForceRegenerateThumbnails {
 	<noscript><p><em><?php esc_html_e( 'You must enable Javascript in order to proceed!', 'force-regenerate-thumbnails' ); ?></em></p></noscript>
 
 	<div id="regenthumbs-bar" style="position:relative;height:25px;">
-		<div id="regenthumbs-bar-percent" style="position:absolute;left:50%;top:50%;width:300px;margin-left:-150px;height:25px;margin-top:-9px;font-weight:bold;text-align:center;"></div>
 	</div>
 
 	<p><input type="button" class="button hide-if-no-js" name="regenthumbs-stop" id="regenthumbs-stop" value="<?php esc_html_e( 'Abort Process', 'force-regenerate-thumbnails' ); ?>" /></p>
@@ -307,7 +368,7 @@ class ForceRegenerateThumbnails {
 	<p>
 			<?php
 			/* translators: %d: the total number of images */
-			printf( esc_html__( 'Total: %s', 'force-regenerate-thumbnails' ), '<span id="regenthumbs-debug-totalcount">0</span>' );
+			printf( esc_html__( 'Total: %s', 'force-regenerate-thumbnails' ), '<span id="regenthumbs-debug-totalcount">' . (int) $this->image_count . '</span>' );
 			echo '<br>';
 			/* translators: %d: the number of successfully regenerated images */
 			printf( esc_html__( 'Success: %s', 'force-regenerate-thumbnails' ), '<span id="regenthumbs-debug-successcount">0</span>' );
@@ -352,6 +413,17 @@ class ForceRegenerateThumbnails {
 			<?php
 		} // End if button
 		?>
+		<?php if ( ! function_exists( 'ewww_image_optimizer' ) ) : ?>
+	<p>
+			<?php
+			printf(
+				/* translators: %s: link to install EWWW Image Optimizer plugin */
+				esc_html__( 'Install the free %s for sharper thumbnails, better compression, and to control which thumbnails are created.', 'force-regenerate-thumbnails' ),
+				'<a href="' . esc_url( admin_url( 'plugin-install.php?s=ewww+image+optimizer&tab=search&type=term' ) ) . '">EWWW Image Optimizer</a>'
+			);
+			?>
+	</p>
+		<?php endif; ?>
 </div>
 
 		<?php
@@ -390,8 +462,14 @@ class ForceRegenerateThumbnails {
 			}
 
 			if ( apply_filters( 'regenerate_thumbs_skip_image', false, $id ) ) {
-				/* translators: %d: attachment ID number */
-				throw new Exception( sprintf( esc_html__( 'Skipped: %d.', 'force-regenerate-thumbnails' ), (int) $id ) );
+				die(
+					wp_json_encode(
+						array(
+							/* translators: %d: attachment ID number */
+							'success' => '<div id="message" class="notice notice-info"><p>' . sprintf( esc_html__( 'Skipped: %d', 'force-regenerate-thumbnails' ), (int) $id ) . '</p></div>',
+						)
+					)
+				);
 			}
 
 			$image = get_post( $id );
@@ -408,6 +486,17 @@ class ForceRegenerateThumbnails {
 
 			if ( 'application/pdf' === $image->post_mime_type && ! extension_loaded( 'imagick' ) ) {
 				throw new Exception( esc_html__( 'Failed: The imagick extension is required for PDF files.', 'force-regenerate-thumbnails' ) );
+			}
+
+			if ( 'image/svg+xml' === $image->post_mime_type ) {
+				die(
+					wp_json_encode(
+						array(
+							/* translators: %d: attachment ID number */
+							'success' => '<div id="message" class="notice notice-info"><p>' . sprintf( esc_html__( 'Skipped: %d is a SVG', 'force-regenerate-thumbnails' ), (int) $id ) . '</p></div>',
+						)
+					)
+				);
 			}
 
 			$upload_dir = wp_get_upload_dir();
@@ -430,10 +519,6 @@ class ForceRegenerateThumbnails {
 			$thumb_error      = array();
 			$thumb_regenerate = array();
 
-			// Hack to find thumbnail.
-			$file_info = pathinfo( $image_fullpath );
-			$file_stem = $this->remove_from_end( $file_info['filename'], '-scaled' ) . '-';
-
 			/**
 			 * Try delete all thumbnails
 			 */
@@ -443,7 +528,10 @@ class ForceRegenerateThumbnails {
 						continue;
 					}
 					$thumb_fullpath = trailingslashit( $file_info['dirname'] ) . wp_basename( $size_data['file'] );
-					if ( is_file( $thumb_fullpath ) ) {
+					if ( apply_filters( 'regenerate_thumbs_weak', false, $thumb_fullpath ) ) {
+						continue;
+					}
+					if ( $thumb_fullpath !== $image_fullpath && is_file( $thumb_fullpath ) ) {
 						do_action( 'regenerate_thumbs_pre_delete', $thumb_fullpath );
 						unlink( $thumb_fullpath );
 						if ( is_file( $thumb_fullpath . '.webp' ) ) {
@@ -459,6 +547,10 @@ class ForceRegenerateThumbnails {
 					}
 				}
 			}
+
+			// Hack to find thumbnail.
+			$file_info = pathinfo( $image_fullpath );
+			$file_stem = $this->remove_from_end( $file_info['filename'], '-scaled' ) . '-';
 
 			$files = array();
 			$path  = opendir( $file_info['dirname'] );
@@ -477,10 +569,16 @@ class ForceRegenerateThumbnails {
 
 			foreach ( $files as $thumb ) {
 				$thumb_fullpath = trailingslashit( $file_info['dirname'] ) . $thumb;
+				if ( apply_filters( 'regenerate_thumbs_weak', false, $thumb_fullpath ) ) {
+					continue;
+				}
 
 				$thumb_info  = pathinfo( $thumb_fullpath );
 				$valid_thumb = explode( $file_stem, $thumb_info['filename'] );
-				if ( '' === $valid_thumb[0] ) {
+				if ( '' === $valid_thumb[0] && ! empty( $valid_thumb[1] ) ) {
+					if ( 0 === strpos( $valid_thumb[1], 'scaled-' ) ) {
+						$valid_thumb[1] = str_replace( 'scaled-', '', $valid_thumb[1] );
+					}
 					$dimension_thumb = explode( 'x', $valid_thumb[1] );
 					if ( 2 === count( $dimension_thumb ) ) {
 						if ( is_numeric( $dimension_thumb[0] ) && is_numeric( $dimension_thumb[1] ) ) {
@@ -633,9 +731,9 @@ class ForceRegenerateThumbnails {
 
 			$this->ob_clean();
 			if ( count( $thumb_error ) > 0 ) {
-				die( wp_json_encode( array( 'error' => '<div id="message" class="error fade"><p>' . $message . '</p></div>' ) ) );
+				die( wp_json_encode( array( 'error' => '<div id="message" class="notice notice-error"><p>' . $message . '</p></div>' ) ) );
 			} else {
-				die( wp_json_encode( array( 'success' => '<div id="message" class="updated fade"><p>' . $message . '</p></div>' ) ) );
+				die( wp_json_encode( array( 'success' => '<div id="message" class="notice notice-success"><p>' . $message . '</p></div>' ) ) );
 			}
 		} catch ( Exception $e ) {
 			$this->die_json_failure_msg( $id, '<b><span style="color: #DD3D36;">' . $e->getMessage() . '</span></b>' );

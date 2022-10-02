@@ -3,7 +3,6 @@ jQuery(document).ready(function($){
 	var rt_images = regen_thumbs.image_ids;
 	var rt_total = rt_images.length;
 	var rt_count = 1;
-	var rt_percent = 0;
 	var rt_successes = 0;
 	var rt_errors = 0;
 	var rt_failedlist = '';
@@ -13,10 +12,8 @@ jQuery(document).ready(function($){
 	var rt_totaltime = 0;
 	var rt_continue = true;
 
-        $("#regenthumbs-debug-totalcount").html(regen_thumbs.image_count);
 	// Create the progress bar
 	$("#regenthumbs-bar").progressbar();
-	$("#regenthumbs-bar-percent").html("0%");
 
 	// Stop button
 	$("#regenthumbs-stop").click(function() {
@@ -31,7 +28,6 @@ jQuery(document).ready(function($){
 	// Called after each resize. Updates debug information and the progress bar.
 	function RegenThumbsUpdateStatus(id, success, response) {
 		$("#regenthumbs-bar").progressbar("value", (rt_count / rt_total) * 100);
-		$("#regenthumbs-bar-percent").html(Math.round((rt_count / rt_total) * 1000) / 10 + "%");
 		rt_count = rt_count + 1;
 
 		if (success) {

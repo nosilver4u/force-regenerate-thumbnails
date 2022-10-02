@@ -38,7 +38,9 @@ function ms_image_editor_default_to_gd_fix( $editors ) {
 
 	return $editors;
 }
-/* add_filter('wp_image_editors', 'ms_image_editor_default_to_gd_fix'); */
+if ( apply_filters( 'regenerate_thumbs_force_gd', false ) ) {
+	add_filter( 'wp_image_editors', 'ms_image_editor_default_to_gd_fix' );
+}
 
 if ( ! function_exists( 'str_ends_with' ) ) {
 	/**
