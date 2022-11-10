@@ -13,7 +13,7 @@ Description: Delete and REALLY force the regenerate thumbnail.
 Version: 2.1.0
 Requires at least: 4.9
 Requires PHP: 7.2
-Author: Pedro Elsner
+Author: Exactly WWW
 Author URI: http://ewww.io/about/
 License: GPLv2
 */

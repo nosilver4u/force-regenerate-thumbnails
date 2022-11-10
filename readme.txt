@@ -1,5 +1,5 @@
 === Force Regenerate Thumbnails ===
-Contributors: Pedro Elsner, Shane Bishop
+Contributors: pedro-elsner, nosilver4u
 Requires at least: 4.9
 Tested up to: 6.1
 Requires PHP: 7.2
