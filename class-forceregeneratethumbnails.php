@@ -599,7 +599,9 @@ class ForceRegenerateThumbnails {
 			/**
 			 * Regenerate all thumbnails
 			 */
-			$original_path = apply_filters( 'regenerate_thumbs_original_image', wp_get_original_image_path( $image->ID, true ) );
+			if ( function_exists( 'wp_get_original_image_path' ) ) {
+				$original_path = apply_filters( 'regenerate_thumbs_original_image', wp_get_original_image_path( $image->ID, true ) );
+			}
 			if ( empty( $original_path ) || ! is_file( $original_path ) ) {
 				$original_path = $image_fullpath;
 			}
