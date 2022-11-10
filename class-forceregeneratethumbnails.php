@@ -236,7 +236,7 @@ class ForceRegenerateThumbnails {
 						'goback' => add_query_arg( null, null ),
 						'ids'    => (int) $post->ID,
 					),
-					admin_url( 'tools.php' ),
+					admin_url( 'tools.php' )
 				),
 				'force-regenerate-thumbnails'
 			);

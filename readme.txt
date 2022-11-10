@@ -32,6 +32,9 @@ Several filters exist for advanced usage. See more via [this gist](https://gist.
 
 == ChangeLog ==
 
+= 2.1.1 =
+* fixed: invalid trailing comma syntax in PHP 7.2
+
 = 2.1.0 =
 * added: PHP 8.0 compatibility
 * added: support generating thumbnails from original (pre-scaled), on by default
