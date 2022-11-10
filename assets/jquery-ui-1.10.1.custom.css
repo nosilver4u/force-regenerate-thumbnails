@@ -318,3 +318,12 @@
 .ui-state-disabled .ui-icon {
 	filter:Alpha(Opacity=35); /* For IE8 - See #6059 */
 }
+
+#regenthumbs-debuglist {
+    margin-left: 0;
+    padding: 1em 1.2em;
+    list-style-position: inside;
+    background: #fff;
+    -webkit-box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1);
+}
