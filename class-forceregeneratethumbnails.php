@@ -38,7 +38,7 @@ class ForceRegenerateThumbnails {
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 210;
+	const VERSION = 211;
 
 	/**
 	 * Plugin initialization
@@ -323,7 +323,7 @@ class ForceRegenerateThumbnails {
 <div id="frt-message" class="notice notice-success is-dismissible" style="display:none">
 	<p><strong><?php esc_html_e( 'All done!', 'force-regenerate-thumbnails' ); ?></strong>
 		<?php if ( ! empty( $_GET['goback'] ) ) : ?>
-			<a href=<?php echo '"' . esc_url( sanitize_url( wp_unslash( $_GET['goback'] ) ) ) . '"'; ?>><?php esc_html_e( 'Go back to the previous page.', 'force-regenerate-thumbnails' ); ?></a>
+			<a href=<?php echo '"' . esc_url( sanitize_text_field( wp_unslash( $_GET['goback'] ) ) ) . '"'; ?>><?php esc_html_e( 'Go back to the previous page.', 'force-regenerate-thumbnails' ); ?></a>
 		<?php endif; ?>
 	</p>
 	<p id="frt-retry-container" style="display:none">
