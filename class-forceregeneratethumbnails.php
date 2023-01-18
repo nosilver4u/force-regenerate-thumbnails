@@ -67,8 +67,8 @@ class ForceRegenerateThumbnails {
 	 */
 	function add_admin_menu() {
 		$this->menu_id = add_management_page(
-			_x( 'Force Regenerate Thumbnails', 'UI Strings', 'force-regenerate-thumbnails' ),
-			_x( 'Force Regenerate Thumbnails', 'UI Strings', 'force-regenerate-thumbnails' ),
+			_x( 'Force Regenerate Thumbnails', 'Admin menu page title tag', 'force-regenerate-thumbnails' ),
+			_x( 'Force Regenerate Thumbnails', 'Admin menu text', 'force-regenerate-thumbnails' ),
 			$this->capability,
 			'force-regenerate-thumbnails',
 			array( &$this, 'force_regenerate_interface' )
@@ -241,7 +241,7 @@ class ForceRegenerateThumbnails {
 				'force-regenerate-thumbnails'
 			);
 
-			$actions['regenerate_thumbnails'] = '<a href="' . esc_url( $url ) . '" title="' . esc_attr__( 'Regenerate the thumbnails for this single image', 'force-regenerate-thumbnails' ) . '">' . _x( 'Force Regenerate Thumbnails', 'UI Strings', 'force-regenerate-thumbnails' ) . '</a>';
+			$actions['regenerate_thumbnails'] = '<a href="' . esc_url( $url ) . '" title="' . esc_attr__( 'Regenerate the thumbnails for this single image', 'force-regenerate-thumbnails' ) . '">' . _x( 'Force Regenerate Thumbnails', 'Media row action', 'force-regenerate-thumbnails' ) . '</a>';
 		}
 
 		return $actions;
@@ -263,7 +263,7 @@ class ForceRegenerateThumbnails {
 			unset( $actions['delete'] );
 		}
 
-		$actions['bulk_force_regenerate_thumbnails'] = _x( 'Force Regenerate Thumbnails', 'UI Strings', 'force-regenerate-thumbnails' );
+		$actions['bulk_force_regenerate_thumbnails'] = _x( 'Force Regenerate Thumbnails', 'Media Library bulk actions drop-down', 'force-regenerate-thumbnails' );
 
 		if ( $delete ) {
 			$actions['delete'] = $delete;
@@ -332,7 +332,7 @@ class ForceRegenerateThumbnails {
 </div>
 
 <div class="wrap regenthumbs">
-	<h2><?php echo esc_html_x( 'Force Regenerate Thumbnails', 'UI Strings', 'force-regenerate-thumbnails' ); ?></h2>
+	<h2><?php echo esc_html_x( 'Force Regenerate Thumbnails', 'Thumbnail regen page', 'force-regenerate-thumbnails' ); ?></h2>
 
 		<?php
 		// If the button was clicked.
