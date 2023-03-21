@@ -1,3 +1,6 @@
+= 2.1.2 =
+* changed: improved i18n for page headings and menu entries, props @alexclassroom
+
 = 2.1.1 =
 * fixed: invalid trailing comma syntax in PHP 7.2
 

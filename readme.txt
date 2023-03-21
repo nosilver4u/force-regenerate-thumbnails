@@ -1,9 +1,9 @@
 === Force Regenerate Thumbnails ===
 Contributors: pedro-elsner, nosilver4u
 Requires at least: 4.9
-Tested up to: 6.1
+Tested up to: 6.2
 Requires PHP: 7.2
-Stable tag: 2.1.1
+Stable tag: 2.1.2
 License: GPLv2
 Tags: force, regenerate thumbnails, thumbnail, thumbnails
 
@@ -31,6 +31,9 @@ Several filters exist for advanced usage. See more via [this gist](https://gist.
 2. You can resize specific multiples images using the checkboxes and the "Bulk Actions" dropdown
 
 == ChangeLog ==
+
+= 2.1.2 =
+* changed: improved i18n for page headings and menu entries, props @alexclassroom
 
 = 2.1.1 =
 * fixed: invalid trailing comma syntax in PHP 7.2
