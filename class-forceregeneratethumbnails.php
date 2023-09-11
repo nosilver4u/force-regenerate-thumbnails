@@ -621,18 +621,27 @@ class ForceRegenerateThumbnails {
 				$original_path = apply_filters( 'regenerate_thumbs_original_image', wp_get_original_image_path( $image->ID, true ) );
 			}
 			if ( empty( $original_path ) || ! is_file( $original_path ) ) {
+				$regen_path    = $image_fullpath;
 				$original_path = $image_fullpath;
+			} elseif ( preg_match( '/e\d{10,}\./', $image_fullpath ) ) {
+				$regen_path = $image_fullpath;
+			} else {
+				$regen_path = $original_path;
 			}
+			$debug_1 = $regen_path;
 
-			$metadata = wp_generate_attachment_metadata( $image->ID, $original_path );
+			$metadata = wp_generate_attachment_metadata( $image->ID, $regen_path );
 			if ( is_wp_error( $metadata ) ) {
 				throw new Exception( esc_html( $metadata->get_error_message() ) );
 			}
 			if ( empty( $metadata ) ) {
 				throw new Exception( esc_html__( 'Unknown failure.', 'force-regenerate-thumbnails' ) );
 			}
+			if ( ! empty( $meta['original_image'] ) && is_file( $original_path ) && empty( $metadata['original_image'] ) ) {
+				$metadata['original_image'] = $meta['original_image'];
+			}
 			wp_update_attachment_metadata( $image->ID, $metadata );
-			do_action( 'regenerate_thumbs_post_update', $image->ID, $original_path );
+			do_action( 'regenerate_thumbs_post_update', $image->ID, $regen_path );
 
 			/**
 			 * Verify results (deleted, errors, success)

@@ -34,6 +34,10 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 
 == ChangeLog ==
 
+= 2.1.3 =
+* changed: use updated coding standards
+* fixed: WP image edits lost if pre-scaled original is used for thumbnail generation
+
 = 2.1.2 =
 * changed: improved i18n for page headings and menu entries, props @alexclassroom
 
