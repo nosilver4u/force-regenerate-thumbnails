@@ -10,9 +10,9 @@
 Plugin Name: Force Regenerate Thumbnails
 Plugin URI: https://wordpress.org/plugins/force-regenerate-thumbnails/
 Description: Delete and REALLY force the regenerate thumbnail.
-Version: 2.1.2
-Requires at least: 4.9
-Requires PHP: 7.2
+Version: 2.1.2.1
+Requires at least: 6.0
+Requires PHP: 7.3
 Author: Exactly WWW
 Author URI: http://ewww.io/about/
 License: GPLv2
@@ -66,7 +66,7 @@ if ( ! function_exists( 'str_ends_with' ) ) {
 	}
 }
 
-require_once( trailingslashit( __DIR__ ) . 'class-forceregeneratethumbnails.php' );
+require_once trailingslashit( __DIR__ ) . 'class-forceregeneratethumbnails.php';
 
 /**
  * Initialize plugin and return FRT object.

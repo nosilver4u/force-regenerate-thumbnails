@@ -32,13 +32,31 @@ class ForceRegenerateThumbnails {
 	public $capability;
 
 	/**
+	 * Number of images to regenerate.
+	 *
+	 * @access protected
+	 * @var int $image_count
+	 * @since 2.1.0
+	 */
+	protected $image_count;
+
+	/**
+	 * Primary admin color.
+	 *
+	 * @access protected
+	 * @var string $admin_color
+	 * @since 2.1.0
+	 */
+	protected $admin_color;
+
+	/**
 	 * Version of the plugin.
 	 *
 	 * @access public
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 212;
+	const VERSION = 212.1;
 
 	/**
 	 * Plugin initialization
@@ -46,7 +64,7 @@ class ForceRegenerateThumbnails {
 	 * @access public
 	 * @since 1.0
 	 */
-	function __construct() {
+	public function __construct() {
 
 		add_action( 'admin_menu', array( &$this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( &$this, 'admin_enqueues' ) );
@@ -65,7 +83,7 @@ class ForceRegenerateThumbnails {
 	 * @access public
 	 * @since 1.0
 	 */
-	function add_admin_menu() {
+	public function add_admin_menu() {
 		$this->menu_id = add_management_page(
 			_x( 'Force Regenerate Thumbnails', 'Admin menu page title tag', 'force-regenerate-thumbnails' ),
 			_x( 'Force Regenerate Thumbnails', 'Admin menu text', 'force-regenerate-thumbnails' ),
@@ -82,7 +100,7 @@ class ForceRegenerateThumbnails {
 	 * @access public
 	 * @since 1.0
 	 */
-	function admin_enqueues( $hook_suffix ) {
+	public function admin_enqueues( $hook_suffix ) {
 
 		if ( $hook_suffix !== $this->menu_id ) {
 			return;
@@ -159,7 +177,7 @@ class ForceRegenerateThumbnails {
 	 *
 	 * @global array $_wp_admin_css_colors An array of available admin color/theme objects.
 	 */
-	function get_admin_colors() {
+	public function get_admin_colors() {
 		if ( ! empty( $this->admin_color ) && preg_match( '/^\#([0-9a-fA-F]){3,6}$/', $this->admin_color ) ) {
 			return;
 		}
@@ -218,7 +236,7 @@ class ForceRegenerateThumbnails {
 	 * @access public
 	 * @since 1.0
 	 */
-	function add_media_row_action( $actions, $post ) {
+	public function add_media_row_action( $actions, $post ) {
 		if ( 'application/pdf' === $post->post_mime_type && ! extension_loaded( 'imagick' ) ) {
 			return $actions;
 		}
@@ -255,7 +273,7 @@ class ForceRegenerateThumbnails {
 	 * @access public
 	 * @since 1.0
 	 */
-	function add_bulk_actions( $actions ) {
+	public function add_bulk_actions( $actions ) {
 
 		$delete = false;
 		if ( ! empty( $actions['delete'] ) ) {
@@ -283,7 +301,7 @@ class ForceRegenerateThumbnails {
 	 * @param array  $post_ids An array of attachment ID numbers.
 	 * @return string The URL to go back to when we are done handling the action.
 	 */
-	function bulk_action_handler( $redirect_to, $doaction, $post_ids ) {
+	public function bulk_action_handler( $redirect_to, $doaction, $post_ids ) {
 		if ( empty( $doaction ) || 'bulk_force_regenerate_thumbnails' !== $doaction ) {
 			return $redirect_to;
 		}
@@ -313,7 +331,7 @@ class ForceRegenerateThumbnails {
 	 * @access public
 	 * @since 1.0
 	 */
-	function force_regenerate_interface() {
+	public function force_regenerate_interface() {
 		$retry_url = wp_nonce_url(
 			admin_url( 'tools.php?page=force-regenerate-thumbnails' ),
 			'force-regenerate-thumbnails'
@@ -434,7 +452,7 @@ class ForceRegenerateThumbnails {
 	 * @since 1.0
 	 * @throws Exception Any time we find an image we can't handle: permissions, corruption, doesn't exist, etc.
 	 */
-	function ajax_process_image() {
+	public function ajax_process_image() {
 		if ( empty( $_REQUEST['id'] ) ) {
 			$this->ob_clean();
 			wp_die( wp_json_encode( array( 'error' => esc_html__( 'No attachment ID submitted.', 'force-regenerate-thumbnails' ) ) ) );
@@ -747,7 +765,7 @@ class ForceRegenerateThumbnails {
 	 * @param array $meta The attachment metadata.
 	 * @return string The full path to the image.
 	 */
-	function get_attachment_path( $id, $meta ) {
+	public function get_attachment_path( $id, $meta ) {
 
 		// Retrieve the location of the WordPress upload folder.
 		$upload_dir  = wp_upload_dir( null, false, true );
@@ -801,7 +819,7 @@ class ForceRegenerateThumbnails {
 	 *
 	 * @return bool True if a supported stream wrapper is found, false otherwise.
 	 */
-	function stream_wrapper_exists() {
+	public function stream_wrapper_exists() {
 		$wrappers = stream_get_wrappers();
 		if ( ! is_iterable( $wrappers ) ) {
 			return false;
@@ -823,7 +841,7 @@ class ForceRegenerateThumbnails {
 	 * @param string $filename The filename to be searched.
 	 * @return bool True if a stream wrapper is found, false otherwise.
 	 */
-	function stream_wrapped( $filename ) {
+	public function stream_wrapped( $filename ) {
 		if ( false !== strpos( $filename, '://' ) ) {
 			if ( strpos( $filename, 's3' ) === 0 ) {
 				return true;
@@ -842,7 +860,7 @@ class ForceRegenerateThumbnails {
 	 * @param string $needle The string to remove if it is at the end of the haystack.
 	 * @return string The haystack with needle removed from the end.
 	 */
-	function remove_from_end( $haystack, $needle ) {
+	public function remove_from_end( $haystack, $needle ) {
 		$needle_length = strlen( $needle );
 		if ( substr( $haystack, -$needle_length ) === $needle ) {
 			return substr( $haystack, 0, -$needle_length );
@@ -853,11 +871,11 @@ class ForceRegenerateThumbnails {
 	/**
 	 * Checks if a function is disabled or does not exist.
 	 *
-	 * @param string $function The name of a function to test.
+	 * @param string $function_name The name of a function to test.
 	 * @param bool   $debug Whether to output debugging.
 	 * @return bool True if the function is available, False if not.
 	 */
-	function function_exists( $function, $debug = false ) {
+	public function function_exists( $function_name, $debug = false ) {
 		if ( extension_loaded( 'suhosin' ) && function_exists( 'ini_get' ) ) {
 			// phpcs:ignore WordPress.PHP.NoSilencedErrors
 			$suhosin_disabled = @ini_get( 'suhosin.executor.func.blacklist' );
@@ -865,19 +883,19 @@ class ForceRegenerateThumbnails {
 				$suhosin_disabled = explode( ',', $suhosin_disabled );
 				$suhosin_disabled = array_map( 'trim', $suhosin_disabled );
 				$suhosin_disabled = array_map( 'strtolower', $suhosin_disabled );
-				if ( function_exists( $function ) && ! in_array( $function, $suhosin_disabled, true ) ) {
+				if ( function_exists( $function_name ) && ! in_array( $function_name, $suhosin_disabled, true ) ) {
 					return true;
 				}
 				return false;
 			}
 		}
-		return \function_exists( $function );
+		return \function_exists( $function_name );
 	}
 
 	/**
 	 * Find out if set_time_limit() is allowed.
 	 */
-	function stl_check() {
+	public function stl_check() {
 		if ( defined( 'FTR_DISABLE_STL' ) && FTR_DISABLE_STL ) {
 			// set_time_limit() disabled by user.
 			return false;
@@ -892,7 +910,7 @@ class ForceRegenerateThumbnails {
 	/**
 	 * Clear output buffers without throwing a fit.
 	 */
-	function ob_clean() {
+	public function ob_clean() {
 		if ( ob_get_length() ) {
 			ob_end_clean();
 		}
@@ -906,7 +924,7 @@ class ForceRegenerateThumbnails {
 	 * @access public
 	 * @since 1.8
 	 */
-	function die_json_failure_msg( $id, $message ) {
+	public function die_json_failure_msg( $id, $message ) {
 		$this->ob_clean();
 		die(
 			wp_json_encode(
