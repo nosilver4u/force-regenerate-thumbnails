@@ -3,7 +3,7 @@ Contributors: pedro-elsner, nosilver4u
 Requires at least: 6.0
 Tested up to: 6.3
 Requires PHP: 7.3
-Stable tag: 2.1.2
+Stable tag: 2.1.3
 License: GPLv2
 Tags: force, regenerate thumbnails, thumbnail, thumbnails
 
