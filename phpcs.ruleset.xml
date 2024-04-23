@@ -7,11 +7,6 @@
 
 	<rule ref="WordPress-Core" />
 	<rule ref="WordPress-Docs" />
-	<rule ref="WordPress.PHP.NoSilencedErrors">
-		<properties>
-			<property name="custom_whitelist" type="array" value="exif_read_data"/>
-		</properties>
-	</rule>
 
 	<config name="testVersion">7.4-</config>
 	<rule ref="PHPCompatibilityWP">
