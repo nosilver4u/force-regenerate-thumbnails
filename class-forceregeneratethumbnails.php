@@ -56,7 +56,7 @@ class ForceRegenerateThumbnails {
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 213;
+	const VERSION = 214;
 
 	/**
 	 * Plugin initialization
@@ -534,6 +534,8 @@ class ForceRegenerateThumbnails {
 			$thumb_error      = array();
 			$thumb_regenerate = array();
 
+			$file_info = pathinfo( $image_fullpath );
+
 			/**
 			 * Try delete all thumbnails
 			 */
@@ -564,7 +566,6 @@ class ForceRegenerateThumbnails {
 			}
 
 			// Hack to find thumbnail.
-			$file_info = pathinfo( $image_fullpath );
 			$file_stem = $this->remove_from_end( $file_info['filename'], '-scaled' ) . '-';
 
 			$files = array();

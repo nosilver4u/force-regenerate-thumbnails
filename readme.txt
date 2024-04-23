@@ -1,9 +1,9 @@
 === Force Regenerate Thumbnails ===
 Contributors: pedro-elsner, nosilver4u
-Requires at least: 6.0
-Tested up to: 6.3
-Requires PHP: 7.3
-Stable tag: 2.1.3
+Requires at least: 6.2
+Tested up to: 6.5
+Requires PHP: 7.4
+Stable tag: 2.1.4
 License: GPLv2
 Tags: force, regenerate thumbnails, thumbnail, thumbnails
 
@@ -34,17 +34,30 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 
 == ChangeLog ==
 
+= 2.1.4 =
+*Release Date - April 23, 2024*
+
+* fixed: thumb removal via metadata not working due to undefined variable
+
 = 2.1.3 =
+*Release Date - September 13, 2023*
+
 * changed: use updated coding standards
 * fixed: WP image edits lost if pre-scaled original is used for thumbnail generation
 
 = 2.1.2 =
+*Release Date - March 21, 2023*
+
 * changed: improved i18n for page headings and menu entries, props @alexclassroom
 
 = 2.1.1 =
+*Release Date - January 18, 2023*
+
 * fixed: invalid trailing comma syntax in PHP 7.2
 
 = 2.1.0 =
+*Release Date - November 10, 2022*
+
 * added: PHP 8.0 compatibility
 * added: support generating thumbnails from original (pre-scaled), on by default
 * added: support for PDF thumbnail generation
@@ -54,29 +67,6 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 * changed: remove HTML from i18n strings
 * changed: improve path lookup function
 * fixed: call to set_time_limit() when it is not allowed
-
-= 2.0.6 =
-* Add PHP7 compatibility
-
-= 2.0.5 =
-* No timeout limit
-
-= 2.0.4 =
-* Fix issue when "opendir()" return FALSE (thanks Krody Robert)
-
-= 2.0.3 =
-* Add debug information on regenerate
-* Fix issue with update "_wp_attachment_metadata" and "_wp_attached_file" on windows
-
-= 2.0.2 =
-* New style for results (thanks @justonarnar)
-* Automatic update "_wp_attachment_metadata" and "_wp_attached_file" (thanks @norecipes)
-
-= 2.0.1 =
-* Fix issue with get_option('upload_path') in Wordpress 3.5+ (thanks @DavidLingren)
-
-= 2.0.0 =
-* Fix error handle
 
 = Earlier versions =
 Please refer to the separate changelog.txt file.

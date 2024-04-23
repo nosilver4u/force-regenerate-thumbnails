@@ -1,14 +1,27 @@
+= 2.1.4 =
+*Release Date - April 23, 2024*
+
+* fixed: thumb removal via metadata not working due to undefined variable
+
 = 2.1.3 =
+*Release Date - September 13, 2023*
+
 * changed: use updated coding standards
 * fixed: WP image edits lost if pre-scaled original is used for thumbnail generation
 
 = 2.1.2 =
+*Release Date - March 21, 2023*
+
 * changed: improved i18n for page headings and menu entries, props @alexclassroom
 
 = 2.1.1 =
+*Release Date - January 18, 2023*
+
 * fixed: invalid trailing comma syntax in PHP 7.2
 
 = 2.1.0 =
+*Release Date - November 10, 2022*
+
 * added: PHP 8.0 compatibility
 * added: support generating thumbnails from original (pre-scaled), on by default
 * added: support for PDF thumbnail generation
