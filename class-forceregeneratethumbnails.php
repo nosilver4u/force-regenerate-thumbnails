@@ -56,7 +56,7 @@ class ForceRegenerateThumbnails {
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 214;
+	const VERSION = 214.34;
 
 	/**
 	 * Plugin initialization
@@ -69,6 +69,7 @@ class ForceRegenerateThumbnails {
 		add_action( 'admin_menu', array( &$this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( &$this, 'admin_enqueues' ) );
 		add_action( 'wp_ajax_regeneratethumbnail', array( &$this, 'ajax_process_image' ) );
+		add_action( 'wp_ajax_frt_finish_regen', array( &$this, 'ajax_finish_regen' ) );
 		add_filter( 'media_row_actions', array( &$this, 'add_media_row_action' ), 10, 2 );
 		add_filter( 'bulk_actions-upload', array( &$this, 'add_bulk_actions' ) );
 		add_filter( 'handle_bulk_actions-upload', array( &$this, 'bulk_action_handler' ), 10, 3 );
@@ -110,6 +111,19 @@ class ForceRegenerateThumbnails {
 
 		wp_enqueue_style( 'jquery-ui-force-regen', plugins_url( 'assets/jquery-ui-1.10.1.custom.css', __FILE__ ), array(), self::VERSION );
 		wp_enqueue_script( 'force-regen-script', plugins_url( 'assets/regen.js', __FILE__ ), array( 'jquery-ui-progressbar' ), self::VERSION );
+
+		if ( ! empty( $_POST['reset-regenerate-thumbnails'] ) ) {
+			// Capability check.
+			if ( ! current_user_can( $this->capability ) ) {
+				wp_die( esc_html__( 'Access denied.', 'force-regenerate-thumbnails' ) );
+			}
+
+			// Form nonce check.
+			check_admin_referer( 'force-regenerate-thumbnails' );
+
+			delete_option( 'frt_last_regenerated' );
+		}
+
 		// If the button was clicked.
 		if ( ! empty( $_POST['force-regenerate-thumbnails'] ) || ! empty( $_REQUEST['ids'] ) ) {
 
@@ -137,17 +151,36 @@ class ForceRegenerateThumbnails {
 					array_walk( $images, 'intval' );
 				}
 				$ids = implode( ',', $images );
+				delete_option( 'frt_last_regenerated' );
 			} else {
 
+				$resume_position = get_option( 'frt_last_regenerated' );
+				if ( empty( $resume_position ) ) {
+					$resume_position = PHP_INT_MAX;
+				}
 				// Directly querying the database is normally frowned upon, but all
 				// of the API functions will return the full post objects which will
 				// suck up lots of memory. This is best, just not as future proof.
 				if ( extension_loaded( 'imagick' ) ) {
-					$images = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND (post_mime_type LIKE '%%image%%' OR post_mime_type LIKE '%%pdf%%') ORDER BY ID DESC" );
+					$images = $wpdb->get_col(
+						$wpdb->prepare(
+							"SELECT ID FROM $wpdb->posts WHERE ID < %d AND post_type = 'attachment' AND (post_mime_type LIKE %s OR post_mime_type LIKE %s) ORDER BY ID DESC",
+							$resume_position,
+							'%image%',
+							'%pdf%'
+						)
+					);
 				} else {
-					$images = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND post_mime_type LIKE '%%image%%' ORDER BY ID DESC" );
+					$images = $wpdb->get_col(
+						$wpdb->prepare(
+							"SELECT ID FROM $wpdb->posts WHERE ID < %d AND post_type = 'attachment' AND post_mime_type LIKE %s ORDER BY ID DESC",
+							$resume_position,
+							'%image%'
+						)
+					);
 				}
 				if ( empty( $images ) ) {
+					delete_option( 'frt_last_regenerated' );
 					return;
 				}
 
@@ -338,6 +371,9 @@ class ForceRegenerateThumbnails {
 		);
 		?>
 
+<div id="frt-aborted" class="notice notice-warning is-dismissible" style="display:none">
+	<p><strong><?php esc_html_e( 'Process aborted, refresh to resume or start again.', 'force-regenerate-thumbnails' ); ?></strong></p>
+</div>
 <div id="frt-message" class="notice notice-success is-dismissible" style="display:none">
 	<p><strong><?php esc_html_e( 'All done!', 'force-regenerate-thumbnails' ); ?></strong>
 		<?php if ( ! empty( $_GET['goback'] ) ) : ?>
@@ -358,7 +394,8 @@ class ForceRegenerateThumbnails {
 
 			// Capability check.
 			if ( ! current_user_can( $this->capability ) ) {
-				wp_die( esc_html__( 'Access denied.', 'force-regenerate-thumbnails' ) );
+				echo '<p>' . esc_html__( 'Access denied.', 'force-regenerate-thumbnails' ) . '</p>';
+				return;
 			}
 
 			// Form nonce check.
@@ -398,8 +435,7 @@ class ForceRegenerateThumbnails {
 	</ol>
 
 			<?php
-		} else {
-			// No button click? Display the form.
+		} else { // No button click, so display the form.
 			?>
 	<form method="post" action="">
 			<?php wp_nonce_field( 'force-regenerate-thumbnails' ); ?>
@@ -411,22 +447,35 @@ class ForceRegenerateThumbnails {
 			<?php esc_html_e( 'Be sure to backup your site before you begin.', 'force-regenerate-thumbnails' ); ?>
 		</p>
 
+		<noscript><p><em><?php esc_html_e( 'You must enable Javascript in order to proceed!', 'force-regenerate-thumbnails' ); ?></em></p></noscript>
+			<?php if ( get_option( 'frt_last_regenerated' ) ) : ?>
+		<p><em><?php esc_html_e( 'A previous thumbnail regeneration was interrupted.', 'force-regenerate-thumbnails' ); ?></em></p>
+		<p><input type="submit" class="button-primary hide-if-no-js" name="force-regenerate-thumbnails" id="force-regenerate-thumbnails" value="<?php esc_attr_e( 'Continue Regenerating Thumbnails', 'force-regenerate-thumbnails' ); ?>" /></p>
+			<?php else : ?>
+		<p><input type="submit" class="button-primary hide-if-no-js" name="force-regenerate-thumbnails" id="force-regenerate-thumbnails" value="<?php esc_attr_e( 'Regenerate All Thumbnails', 'force-regenerate-thumbnails' ); ?>" /></p>
+			<?php endif; ?>
+	</form>
+
+			<?php if ( get_option( 'frt_last_regenerated' ) ) : ?>
+	<form method="post" action="">
+				<?php wp_nonce_field( 'force-regenerate-thumbnails' ); ?>
+
 		<p>
-			<noscript><p><em><?php esc_html_e( 'You must enable Javascript in order to proceed!', 'force-regenerate-thumbnails' ); ?></em></p></noscript>
-			<input type="submit" class="button-primary hide-if-no-js" name="force-regenerate-thumbnails" id="force-regenerate-thumbnails" value="<?php esc_attr_e( 'Regenerate All Thumbnails', 'force-regenerate-thumbnails' ); ?>" />
+			<input type="submit" class="button-secondary hide-if-no-js" name="reset-regenerate-thumbnails" id="reset-regenerate-thumbnails" value="<?php esc_attr_e( 'Start Over', 'force-regenerate-thumbnails' ); ?>" />
 		</p>
 
-		</br>
-		<h3><?php esc_html_e( 'Specific Thumbnails', 'force-regenerate-thumbnails' ); ?></h3>
+	</form>
+			<?php endif; ?>
+	<h3><?php esc_html_e( 'Specific Thumbnails', 'force-regenerate-thumbnails' ); ?></h3>
 
-		<p>
+	<p>
 			<?php /* translators: %s: Media Library (link) */ ?>
 			<?php printf( esc_html__( 'You may regenerate thumbnails for specific images from the %s in List mode.', 'force-regenerate-thumbnails' ), '<a href="' . esc_url( admin_url( 'upload.php?mode=list' ) ) . '">' . esc_html__( 'Media Library', 'force-regenerate-thumbnails' ) . '</a>' ); ?>
 			<?php esc_html_e( 'Be sure to backup your site before you begin.', 'force-regenerate-thumbnails' ); ?>
-		</p>
-	</form>
+	</p>
+
 			<?php
-		} // End if button
+		} // End if button clicked to start regen process.
 		?>
 		<?php if ( ! function_exists( 'ewww_image_optimizer' ) ) : ?>
 	<p>
@@ -444,9 +493,24 @@ class ForceRegenerateThumbnails {
 		<?php
 	}
 
+	/**
+	 * Mark the bulk regen process as complete, by removing the last regen option.
+	 *
+	 * @access public
+	 * @since 2.2
+	 */
+	public function ajax_finish_regen() {
+		if ( ! current_user_can( $this->capability ) ) {
+			wp_die();
+		}
+		if ( empty( $_REQUEST['frt_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_REQUEST['frt_wpnonce'] ), 'force-regenerate-attachment' ) ) {
+			wp_die();
+		}
+		delete_option( 'frt_last_regenerated' );
+	}
 
 	/**
-	 * Process a single image ID (this is an AJAX handler)
+	 * Process a single image ID via an AJAX request.
 	 *
 	 * @access public
 	 * @since 1.0
@@ -476,12 +540,21 @@ class ForceRegenerateThumbnails {
 				throw new Exception( esc_html__( 'Access token has expired, please reload the page.', 'force-regenerate-thumbnails' ) );
 			}
 
+			// Find out if our nonce is on it's last leg/tick.
+			$current_nonce = sanitize_key( $_REQUEST['frt_wpnonce'] );
+			$tick          = wp_verify_nonce( $current_nonce, 'force-regenerate-attachment' );
+			if ( 2 === $tick ) {
+				$current_nonce = wp_create_nonce( 'force-regenerate-attachment' );
+			}
+
 			if ( apply_filters( 'regenerate_thumbs_skip_image', false, $id ) ) {
+				update_option( 'frt_last_regenerated', $id );
 				die(
 					wp_json_encode(
 						array(
 							/* translators: %d: attachment ID number */
-							'success' => '<div id="message" class="notice notice-info"><p>' . sprintf( esc_html__( 'Skipped: %d', 'force-regenerate-thumbnails' ), (int) $id ) . '</p></div>',
+							'success'       => '<div id="message" class="notice notice-info"><p>' . sprintf( esc_html__( 'Skipped: %d', 'force-regenerate-thumbnails' ), (int) $id ) . '</p></div>',
+							'current_nonce' => $current_nonce,
 						)
 					)
 				);
@@ -504,11 +577,13 @@ class ForceRegenerateThumbnails {
 			}
 
 			if ( 'image/svg+xml' === $image->post_mime_type ) {
+				update_option( 'frt_last_regenerated', $id );
 				die(
 					wp_json_encode(
 						array(
 							/* translators: %d: attachment ID number */
-							'success' => '<div id="message" class="notice notice-info"><p>' . sprintf( esc_html__( 'Skipped: %d is a SVG', 'force-regenerate-thumbnails' ), (int) $id ) . '</p></div>',
+							'success'       => '<div id="message" class="notice notice-info"><p>' . sprintf( esc_html__( 'Skipped: %d is a SVG', 'force-regenerate-thumbnails' ), (int) $id ) . '</p></div>',
+							'current_nonce' => $current_nonce,
 						)
 					)
 				);
@@ -714,10 +789,11 @@ class ForceRegenerateThumbnails {
 				) .
 				'</strong>';
 			$message .= '<br><br>';
+			// The Upload dir/URL are suppressed, just extra noise that we don't need.
 			/* translators: %s: the path to the uploads directory */
-			$message .= '<code>' . sprintf( esc_html__( 'Upload Directory: %s', 'force-regenerate-thumbnails' ), esc_html( $upload_dir['basedir'] ) ) . '</code><br>';
+			$old_message = '<code>' . sprintf( esc_html__( 'Upload Directory: %s', 'force-regenerate-thumbnails' ), esc_html( $upload_dir['basedir'] ) ) . '</code><br>';
 			/* translators: %s: the base URL of the uploads directory */
-			$message .= '<code>' . sprintf( esc_html__( 'Upload URL: %s', 'force-regenerate-thumbnails' ), esc_html( $upload_dir['baseurl'] ) ) . '</code><br>';
+			$old_message = '<code>' . sprintf( esc_html__( 'Upload URL: %s', 'force-regenerate-thumbnails' ), esc_html( $upload_dir['baseurl'] ) ) . '</code><br>';
 			/* translators: %s: the full path of the image */
 			$message .= '<code>' . sprintf( esc_html__( 'Image: %s', 'force-regenerate-thumbnails' ), esc_html( $debug_1 ) ) . '</code><br>';
 			if ( $debug_2 ) {
@@ -740,8 +816,8 @@ class ForceRegenerateThumbnails {
 				$message .= sprintf( esc_html__( 'Deleted: %s', 'force-regenerate-thumbnails' ), esc_html( implode( ', ', $thumb_deleted ) ) ) . '<br>';
 			}
 			if ( count( $thumb_error ) > 0 ) {
-				/* translators: %s: an error message (translated elsewhere) */
-				$message .= '<strong><span style="color: #dd3d36;">' . sprintf( esc_html__( 'Deleted error: %s', 'force-regenerate-thumbnails' ), esc_html( implode( ', ', $thumb_error ) ) ) . '</span></strong><br>';
+				/* translators: %s: size of the failed thumbnail(s), like 400x300 */
+				$message .= '<strong><span style="color: #dd3d36;">' . sprintf( esc_html__( 'Delete failed: %s', 'force-regenerate-thumbnails' ), esc_html( implode( ', ', $thumb_error ) ) ) . '</span></strong><br>';
 				/* translators: %s: the path to the uploads directory */
 				$message .= '<span style="color: #dd3d36;">' . sprintf( esc_html__( 'Please ensure the folder has write permissions (chmod 755): %s', 'force-regenerate-thumbnails' ), esc_html( $upload_dir['basedir'] ) ) . '</span><br>';
 			}
@@ -758,9 +834,25 @@ class ForceRegenerateThumbnails {
 
 			$this->ob_clean();
 			if ( count( $thumb_error ) > 0 ) {
-				die( wp_json_encode( array( 'error' => '<div id="message" class="notice notice-error"><p>' . $message . '</p></div>' ) ) );
+				update_option( 'frt_last_regenerated', $id );
+				die(
+					wp_json_encode(
+						array(
+							'error'         => '<div id="message" class="notice notice-error"><p>' . $message . '</p></div>',
+							'current_nonce' => $current_nonce,
+						)
+					)
+				);
 			} else {
-				die( wp_json_encode( array( 'success' => '<div id="message" class="notice notice-success"><p>' . $message . '</p></div>' ) ) );
+				update_option( 'frt_last_regenerated', $id );
+				die(
+					wp_json_encode(
+						array(
+							'success'       => '<div id="message" class="notice notice-success"><p>' . $message . '</p></div>',
+							'current_nonce' => $current_nonce,
+						)
+					)
+				);
 			}
 		} catch ( Exception $e ) {
 			$this->die_json_failure_msg( $id, '<b><span style="color: #DD3D36;">' . $e->getMessage() . '</span></b>' );
