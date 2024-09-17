@@ -3,7 +3,7 @@ Contributors: pedro-elsner, nosilver4u
 Requires at least: 6.3
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 2.1.4
+Stable tag: 2.2.0
 License: GPLv2
 Tags: force, regenerate thumbnails, thumbnail, thumbnails
 
@@ -35,7 +35,7 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 == ChangeLog ==
 
 = 2.2.0 =
-*Release Date - TBD*
+*Release Date - September 17, 2023*
 
 * added: regen process can be resumed
 * fixed: nonce expiration stops regen process

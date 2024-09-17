@@ -1,3 +1,10 @@
+= 2.2.0 =
+*Release Date - September 17, 2023*
+
+* added: regen process can be resumed
+* fixed: nonce expiration stops regen process
+* fixed: JS errors on thumb regen page
+
 = 2.1.4 =
 *Release Date - April 23, 2024*
 
