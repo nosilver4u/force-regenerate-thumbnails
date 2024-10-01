@@ -35,7 +35,7 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 == ChangeLog ==
 
 = 2.2.0 =
-*Release Date - September 17, 2023*
+*Release Date - September 17, 2024*
 
 * added: regen process can be resumed
 * fixed: nonce expiration stops regen process
