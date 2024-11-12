@@ -56,7 +56,7 @@ class ForceRegenerateThumbnails {
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 220;
+	const VERSION = 221;
 
 	/**
 	 * Plugin initialization
@@ -301,10 +301,11 @@ class ForceRegenerateThumbnails {
 	/**
 	 * Add "Force Regenerate Thumbnails" to the Bulk Actions media dropdown
 	 *
-	 * @param array $actions Bulk actions list.
-	 * @return array
 	 * @access public
 	 * @since 1.0
+	 *
+	 * @param array $actions Bulk actions list.
+	 * @return array
 	 */
 	public function add_bulk_actions( $actions ) {
 
@@ -321,6 +322,28 @@ class ForceRegenerateThumbnails {
 		}
 
 		return $actions;
+	}
+
+	/**
+	 * Get a list of currently active/registered sizes.
+	 *
+	 * @access public
+	 * @since 2.2.1
+	 *
+	 * @return array A list of registered sizes with applicable dimensions.
+	 */
+	public function get_active_image_sizes() {
+		$sizes = wp_get_registered_image_subsizes();
+
+		global $wpdb;
+		$latest_upload = (int) $wpdb->get_var( "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND post_mime_type LIKE '%%image%%' ORDER BY ID DESC LIMIT 1" );
+		if ( $latest_upload ) {
+			$image_meta = wp_get_attachment_metadata( $latest_upload );
+			$sizes      = apply_filters( 'intermediate_image_sizes_advanced', $sizes, $image_meta, $latest_upload );
+		} elseif ( function_exists( 'ewww_image_optimizer_image_sizes_advanced' ) ) {
+			$sizes = ewww_image_optimizer_image_sizes_advanced( $sizes );
+		}
+		return $sizes;
 	}
 
 	/**
@@ -436,6 +459,17 @@ class ForceRegenerateThumbnails {
 
 			<?php
 		} else { // No button click, so display the form.
+			$image_sizes          = $this->get_active_image_sizes();
+			$ewwwio_localmode_url = wp_nonce_url(
+				add_query_arg(
+					array(
+						'page'         => 'ewww-image-optimizer-options',
+						'enable-local' => 1,
+					),
+					admin_url( 'options-general.php' )
+				),
+				'ewww_image_optimizer_options-options'
+			);
 			?>
 	<form method="post" action="">
 			<?php wp_nonce_field( 'force-regenerate-thumbnails' ); ?>
@@ -448,6 +482,20 @@ class ForceRegenerateThumbnails {
 		</p>
 
 		<noscript><p><em><?php esc_html_e( 'You must enable Javascript in order to proceed!', 'force-regenerate-thumbnails' ); ?></em></p></noscript>
+
+			<?php if ( ! empty( $image_sizes ) ) : ?>
+		<p><?php esc_html_e( 'The following image sizes will be regenerated, all other thumbnails will be deleted:', 'force-regenerate-thumbnails' ); ?></p>
+		<ul style="list-style: disc inside; margin: 1em 0 2em 0.5em;">
+				<?php foreach ( $image_sizes as $size => $dimensions ) : ?>
+					<?php
+					if ( empty( $dimensions['width'] ) && empty( $dimensions['height'] ) ) {
+						continue;
+					}
+					?>
+					<li><?php echo esc_html( $size ) . ' - ' . (int) $dimensions['width'] . ' x ' . (int) $dimensions['height']; ?></li>
+				<?php endforeach; ?>
+		</ul>
+			<?php endif; ?>
 			<?php if ( get_option( 'frt_last_regenerated' ) ) : ?>
 		<p><em><?php esc_html_e( 'A previous thumbnail regeneration was interrupted.', 'force-regenerate-thumbnails' ); ?></em></p>
 		<p><input type="submit" class="button-primary hide-if-no-js" name="force-regenerate-thumbnails" id="force-regenerate-thumbnails" value="<?php esc_attr_e( 'Continue Regenerating Thumbnails', 'force-regenerate-thumbnails' ); ?>" /></p>
@@ -471,7 +519,6 @@ class ForceRegenerateThumbnails {
 	<p>
 			<?php /* translators: %s: Media Library (link) */ ?>
 			<?php printf( esc_html__( 'You may regenerate thumbnails for specific images from the %s in List mode.', 'force-regenerate-thumbnails' ), '<a href="' . esc_url( admin_url( 'upload.php?mode=list' ) ) . '">' . esc_html__( 'Media Library', 'force-regenerate-thumbnails' ) . '</a>' ); ?>
-			<?php esc_html_e( 'Be sure to backup your site before you begin.', 'force-regenerate-thumbnails' ); ?>
 	</p>
 
 			<?php
@@ -484,6 +531,16 @@ class ForceRegenerateThumbnails {
 				/* translators: %s: link to install EWWW Image Optimizer plugin */
 				esc_html__( 'Install the free %s for sharper thumbnails, better compression, and to control which thumbnails are created.', 'force-regenerate-thumbnails' ),
 				'<a href="' . esc_url( admin_url( 'plugin-install.php?s=ewww+image+optimizer&tab=search&type=term' ) ) . '">EWWW Image Optimizer</a>'
+			);
+			?>
+	</p>
+		<?php else : ?>
+	<p>
+			<?php
+			printf(
+				/* translators: %s: link to EWWW Image Optimizer settings */
+				esc_html__( 'Configure the %s to enable sharper thumbnails and control which thumbnails are created.', 'force-regenerate-thumbnails' ),
+				'<a href="' . esc_url( $ewwwio_localmode_url ) . '">EWWW Image Optimizer</a>'
 			);
 			?>
 	</p>
