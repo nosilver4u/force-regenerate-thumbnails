@@ -34,6 +34,11 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 
 == ChangeLog ==
 
+= 2.2.2 =
+*Release Date - TBD*
+
+* fixed: PHP notice when regenerating select images
+
 = 2.2.1 =
 *Release Date - November 12, 2024*
 

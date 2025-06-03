@@ -388,9 +388,19 @@ class ForceRegenerateThumbnails {
 	 * @since 1.0
 	 */
 	public function force_regenerate_interface() {
-		$retry_url = wp_nonce_url(
+		$retry_url            = wp_nonce_url(
 			admin_url( 'tools.php?page=force-regenerate-thumbnails' ),
 			'force-regenerate-thumbnails'
+		);
+		$ewwwio_localmode_url = wp_nonce_url(
+			add_query_arg(
+				array(
+					'page'         => 'ewww-image-optimizer-options',
+					'enable-local' => 1,
+				),
+				admin_url( 'options-general.php' )
+			),
+			'ewww_image_optimizer_options-options'
 		);
 		?>
 
@@ -459,17 +469,7 @@ class ForceRegenerateThumbnails {
 
 			<?php
 		} else { // No button click, so display the form.
-			$image_sizes          = $this->get_active_image_sizes();
-			$ewwwio_localmode_url = wp_nonce_url(
-				add_query_arg(
-					array(
-						'page'         => 'ewww-image-optimizer-options',
-						'enable-local' => 1,
-					),
-					admin_url( 'options-general.php' )
-				),
-				'ewww_image_optimizer_options-options'
-			);
+			$image_sizes = $this->get_active_image_sizes();
 			?>
 	<form method="post" action="">
 			<?php wp_nonce_field( 'force-regenerate-thumbnails' ); ?>
