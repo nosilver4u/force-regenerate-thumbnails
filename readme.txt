@@ -1,9 +1,9 @@
 === Force Regenerate Thumbnails ===
 Contributors: pedro-elsner, nosilver4u
-Requires at least: 6.4
-Tested up to: 6.7
+Requires at least: 6.5
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.2.1
+Stable tag: 2.2.2
 License: GPLv2
 Tags: force, regenerate thumbnails, thumbnail, thumbnails
 
@@ -35,7 +35,7 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 == ChangeLog ==
 
 = 2.2.2 =
-*Release Date - TBD*
+*Release Date - June 3, 2025*
 
 * fixed: PHP notice when regenerating select images
 

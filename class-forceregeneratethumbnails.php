@@ -56,7 +56,7 @@ class ForceRegenerateThumbnails {
 	 * @var float VERSION
 	 * @since 2.1.0
 	 */
-	const VERSION = 221;
+	const VERSION = 222;
 
 	/**
 	 * Plugin initialization
