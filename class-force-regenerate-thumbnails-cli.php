@@ -51,7 +51,7 @@ class Force_Regenerate_Thumbnails_CLI {
 			WP_CLI::success( __( 'Resume point cleared. Starting over.', 'force-regenerate-thumbnails' ) );
 		}
 
-		$ids      = array();
+		$ids = array();
 		if ( ! empty( $assoc_args['ids'] ) ) {
 			$ids = array_map( 'intval', explode( ',', $assoc_args['ids'] ) );
 		} else {
@@ -66,10 +66,14 @@ class Force_Regenerate_Thumbnails_CLI {
 					$resume_position,
 					'%image%'
 				);
+				$ids = $wpdb->get_col( $query );
 			} else {
-				$query = "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND post_mime_type LIKE '%image%' ORDER BY ID DESC";
+				$query = $wpdb->prepare(
+					"SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND post_mime_type LIKE %s ORDER BY ID DESC",
+					'%image%'
+				);
+				$ids = $wpdb->get_col( $query );
 			}
-			$ids = $wpdb->get_col( $query );
 		}
 
 		if ( empty( $ids ) ) {
@@ -77,9 +81,9 @@ class Force_Regenerate_Thumbnails_CLI {
 			return;
 		}
 
-		$total    = count( $ids );
-		$success  = 0;
-		$fail     = 0;
+		$total   = count( $ids );
+		$success = 0;
+		$fail    = 0;
 		$progress = \WP_CLI\Utils\make_progress_bar( __( 'Regenerating thumbnails', 'force-regenerate-thumbnails' ), $total );
 
 		foreach ( $ids as $id ) {
