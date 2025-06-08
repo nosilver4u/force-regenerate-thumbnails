@@ -36,6 +36,10 @@ class Force_Regenerate_Thumbnails_CLI {
 	 *     wp force-regenerate-thumbnails --start-over
 	 *
 	 * @when after_wp_load
+	 *
+	 * @param array $args       Positional arguments.
+	 * @param array $assoc_args Associative arguments.
+	 * @throws Exception If an error occurs during regeneration.
 	 */
 	public function __invoke( $args, $assoc_args ) {
 		global $wpdb;
@@ -47,7 +51,7 @@ class Force_Regenerate_Thumbnails_CLI {
 			WP_CLI::success( __( 'Resume point cleared. Starting over.', 'force-regenerate-thumbnails' ) );
 		}
 
-		$ids = array();
+		$ids      = array();
 		if ( ! empty( $assoc_args['ids'] ) ) {
 			$ids = array_map( 'intval', explode( ',', $assoc_args['ids'] ) );
 		} else {
@@ -56,13 +60,16 @@ class Force_Regenerate_Thumbnails_CLI {
 				$resume_position = (int) get_option( 'frt_last_regenerated', 0 );
 			}
 			if ( $resume_position ) {
-				$where = $wpdb->prepare( 'ID < %d', $resume_position );
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is prepared below.
+				$query = $wpdb->prepare(
+					"SELECT ID FROM $wpdb->posts WHERE ID < %d AND post_type = 'attachment' AND post_mime_type LIKE %s ORDER BY ID DESC",
+					$resume_position,
+					'%image%'
+				);
 			} else {
-				$where = '1=1';
+				$query = "SELECT ID FROM $wpdb->posts WHERE post_type = 'attachment' AND post_mime_type LIKE '%image%' ORDER BY ID DESC";
 			}
-			$ids = $wpdb->get_col( 
-				"SELECT ID FROM $wpdb->posts WHERE $where AND post_type = 'attachment' AND post_mime_type LIKE '%image%' ORDER BY ID DESC"
-			);
+			$ids = $wpdb->get_col( $query );
 		}
 
 		if ( empty( $ids ) ) {
@@ -70,21 +77,23 @@ class Force_Regenerate_Thumbnails_CLI {
 			return;
 		}
 
-		$total = count( $ids );
-		$success = 0;
-		$fail = 0;
+		$total    = count( $ids );
+		$success  = 0;
+		$fail     = 0;
 		$progress = \WP_CLI\Utils\make_progress_bar( __( 'Regenerating thumbnails', 'force-regenerate-thumbnails' ), $total );
 
 		foreach ( $ids as $id ) {
 			try {
 				// Mimic AJAX handler logic.
 				$image = get_post( $id );
+				// translators: %d: Media ID.
 				if ( is_null( $image ) || 'attachment' !== $image->post_type || ( 'image/' !== substr( $image->post_mime_type, 0, 6 ) && 'application/pdf' !== $image->post_mime_type ) ) {
 					throw new Exception( sprintf( __( 'Invalid media ID: %d', 'force-regenerate-thumbnails' ), $id ) );
 				}
 				if ( 'application/pdf' === $image->post_mime_type && ! extension_loaded( 'imagick' ) ) {
 					throw new Exception( __( 'The imagick extension is required for PDF files.', 'force-regenerate-thumbnails' ) );
 				}
+				// translators: %d: SVG attachment ID.
 				if ( 'image/svg+xml' === $image->post_mime_type ) {
 					update_option( 'frt_last_regenerated', $id );
 					WP_CLI::log( sprintf( __( 'Skipped SVG: %d', 'force-regenerate-thumbnails' ), $id ) );
@@ -92,7 +101,7 @@ class Force_Regenerate_Thumbnails_CLI {
 					continue;
 				}
 
-				$meta = wp_get_attachment_metadata( $id );
+				$meta          = wp_get_attachment_metadata( $id );
 				$image_fullpath = $force->get_attachment_path( $id, $meta );
 				if ( empty( $image_fullpath ) || false === realpath( $image_fullpath ) ) {
 					throw new Exception( __( 'The original image file cannot be found.', 'force-regenerate-thumbnails' ) );
@@ -136,16 +145,17 @@ class Force_Regenerate_Thumbnails_CLI {
 				}
 				wp_update_attachment_metadata( $id, $metadata );
 				update_option( 'frt_last_regenerated', $id );
-				$success++;
+				++$success;
 			} catch ( Exception $e ) {
-				$fail++;
+				++$fail;
 				update_option( 'frt_last_regenerated', $id );
 				WP_CLI::warning( $e->getMessage() );
 			}
 			$progress->tick();
 		}
 		$progress->finish();
-		WP_CLI::success( sprintf( __( 'Done. Success: %d, Failures: %d', 'force-regenerate-thumbnails' ), $success, $fail ) );
+		// translators: 1: Success count, 2: Failure count.
+		WP_CLI::success( sprintf( __( 'Done. Success: %1$d, Failures: %2$d', 'force-regenerate-thumbnails' ), $success, $fail ) );
 	}
 }
 
