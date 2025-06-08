@@ -76,3 +76,8 @@ function force_regenerate_thumbnails() {
 	return $force_regenerate_thumbnails;
 }
 add_action( 'init', 'force_regenerate_thumbnails' );
+
+// Register WP-CLI command if WP_CLI is present.
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once trailingslashit( __DIR__ ) . 'class-force-regenerate-thumbnails-cli.php';
+}
