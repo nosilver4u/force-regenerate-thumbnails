@@ -60,7 +60,6 @@ class Force_Regenerate_Thumbnails_CLI {
 				$resume_position = (int) get_option( 'frt_last_regenerated', 0 );
 			}
 			if ( $resume_position ) {
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe and cannot be parameterized.
 				$ids = $wpdb->get_col(
 					$wpdb->prepare(
 						'SELECT ID FROM ' . $wpdb->posts . ' WHERE ID < %d AND post_type = %s AND post_mime_type LIKE %s ORDER BY ID DESC',
@@ -70,7 +69,6 @@ class Force_Regenerate_Thumbnails_CLI {
 					)
 				);
 			} else {
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is safe and cannot be parameterized.
 				$ids = $wpdb->get_col(
 					$wpdb->prepare(
 						'SELECT ID FROM ' . $wpdb->posts . ' WHERE post_type = %s AND post_mime_type LIKE %s ORDER BY ID DESC',
