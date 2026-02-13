@@ -150,10 +150,8 @@ class ForceRegenerateThumbnails {
 					$images = explode( ',', $request_ids[0] );
 					array_walk( $images, 'intval' );
 				}
-				$ids = implode( ',', $images );
 				delete_option( 'frt_last_regenerated' );
 			} else {
-
 				$resume_position = get_option( 'frt_last_regenerated' );
 				if ( empty( $resume_position ) ) {
 					$resume_position = PHP_INT_MAX;
@@ -183,8 +181,6 @@ class ForceRegenerateThumbnails {
 					delete_option( 'frt_last_regenerated' );
 					return;
 				}
-
-				$ids = implode( ',', $images );
 			}
 
 			$this->image_count = count( $images );
@@ -846,11 +842,6 @@ class ForceRegenerateThumbnails {
 				) .
 				'</strong>';
 			$message .= '<br><br>';
-			// The Upload dir/URL are suppressed, just extra noise that we don't need.
-			/* translators: %s: the path to the uploads directory */
-			$old_message = '<code>' . sprintf( esc_html__( 'Upload Directory: %s', 'force-regenerate-thumbnails' ), esc_html( $upload_dir['basedir'] ) ) . '</code><br>';
-			/* translators: %s: the base URL of the uploads directory */
-			$old_message = '<code>' . sprintf( esc_html__( 'Upload URL: %s', 'force-regenerate-thumbnails' ), esc_html( $upload_dir['baseurl'] ) ) . '</code><br>';
 			/* translators: %s: the full path of the image */
 			$message .= '<code>' . sprintf( esc_html__( 'Image: %s', 'force-regenerate-thumbnails' ), esc_html( $debug_1 ) ) . '</code><br>';
 			if ( $debug_2 ) {
