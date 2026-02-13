@@ -34,6 +34,11 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 
 == ChangeLog ==
 
+= 2.2.3 =
+*Release Date - TBD*
+
+* fixed: PHP 8.5 compatibility
+
 = 2.2.2 =
 *Release Date - June 3, 2025*
 
