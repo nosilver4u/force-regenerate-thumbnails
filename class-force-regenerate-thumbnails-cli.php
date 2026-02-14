@@ -83,9 +83,9 @@ class Force_Regenerate_Thumbnails_CLI {
 			return;
 		}
 
-		$total    = count( $ids );
-		$success  = 0;
-		$fail     = 0;
+		$total   = count( $ids );
+		$success = 0;
+		$fail    = 0;
 		// translators: %d: number of images.
 		WP_CLI::log( sprintf( __( 'Regenerating thumbnails for %d media items:', 'force-regenerate-thumbnails' ), $total ) );
 		$progress = \WP_CLI\Utils\make_progress_bar( __( 'Regenerating thumbnails', 'force-regenerate-thumbnails' ), $total );
