@@ -37,6 +37,7 @@ You may report security issues through our Patchstack Vulnerability Disclosure P
 = 2.2.3 =
 *Release Date - TBD*
 
+* added: WP_CLI command: force-regenerate-thumbnails props @realmranshuman
 * fixed: PHP 8.5 compatibility
 
 = 2.2.2 =

@@ -615,12 +615,7 @@ class ForceRegenerateThumbnails {
 
 			$image = get_post( $id );
 
-			if ( is_null( $image ) ) {
-				/* translators: %d: attachment ID number */
-				throw new Exception( sprintf( esc_html__( 'Failed: %d is an invalid media ID.', 'force-regenerate-thumbnails' ), (int) $id ) );
-			}
-
-			if ( 'attachment' !== $image->post_type || ( 'image/' !== substr( $image->post_mime_type, 0, 6 ) && 'application/pdf' !== $image->post_mime_type ) ) {
+			if ( is_null( $image ) || 'attachment' !== $image->post_type || ( ! str_starts_with( $image->post_mime_type, 'image/' ) && 'application/pdf' !== $image->post_mime_type ) ) {
 				/* translators: %d: attachment ID number */
 				throw new Exception( sprintf( esc_html__( 'Failed: %d is an invalid media ID.', 'force-regenerate-thumbnails' ), (int) $id ) );
 			}
@@ -693,7 +688,7 @@ class ForceRegenerateThumbnails {
 				}
 			}
 
-			// Hack to find thumbnail.
+			// Workaround to find thumbnails not in metadata.
 			$file_stem = $this->remove_from_end( $file_info['filename'], '-scaled' ) . '-';
 
 			$files = array();
@@ -702,7 +697,7 @@ class ForceRegenerateThumbnails {
 			if ( false !== $path ) {
 				$thumb = readdir( $path );
 				while ( false !== $thumb ) {
-					if ( 0 === strpos( $thumb, $file_stem ) && str_ends_with( $thumb, $file_info['extension'] ) ) {
+					if ( str_starts_with( $thumb, $file_stem ) && str_ends_with( $thumb, $file_info['extension'] ) ) {
 						$files[] = $thumb;
 					}
 					$thumb = readdir( $path );
@@ -719,12 +714,16 @@ class ForceRegenerateThumbnails {
 
 				$thumb_info  = pathinfo( $thumb_fullpath );
 				$valid_thumb = explode( $file_stem, $thumb_info['filename'] );
+				// This ensures we only target files that start with the original filename, but are also longer than the original.
+				// Otherwise, we might delete the original image, since the while() does not preclude the original.
 				if ( '' === $valid_thumb[0] && ! empty( $valid_thumb[1] ) ) {
+					// Further, if the thumbnail name appendage has 'scaled-' in it, we need to remove it for the dimension check coming up.
 					if ( 0 === strpos( $valid_thumb[1], 'scaled-' ) ) {
 						$valid_thumb[1] = str_replace( 'scaled-', '', $valid_thumb[1] );
 					}
 					$dimension_thumb = explode( 'x', $valid_thumb[1] );
 					if ( 2 === count( $dimension_thumb ) ) {
+						// Thus we only remove files with an appendage like '-150x150' or '-150x150-scaled'.
 						if ( is_numeric( $dimension_thumb[0] ) && is_numeric( $dimension_thumb[1] ) ) {
 							do_action( 'regenerate_thumbs_pre_delete', $thumb_fullpath );
 							unlink( $thumb_fullpath );

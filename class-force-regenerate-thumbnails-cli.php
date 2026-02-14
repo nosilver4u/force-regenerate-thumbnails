@@ -22,9 +22,6 @@ class Force_Regenerate_Thumbnails_CLI {
 	 * [--ids=<ids>]
 	 * : Comma-separated list of attachment IDs to process. If omitted, all images will be processed.
 	 *
-	 * [--resume]
-	 * : Resume from the last interrupted image (if any).
-	 *
 	 * [--start-over]
 	 * : Start over and clear any previous resume point.
 	 *
@@ -32,7 +29,6 @@ class Force_Regenerate_Thumbnails_CLI {
 	 *
 	 *     wp force-regenerate-thumbnails
 	 *     wp force-regenerate-thumbnails --ids=123,456
-	 *     wp force-regenerate-thumbnails --resume
 	 *     wp force-regenerate-thumbnails --start-over
 	 *
 	 * @when after_wp_load
@@ -55,11 +51,21 @@ class Force_Regenerate_Thumbnails_CLI {
 		if ( ! empty( $assoc_args['ids'] ) ) {
 			$ids = array_map( 'intval', explode( ',', $assoc_args['ids'] ) );
 		} else {
-			$resume_position = 0;
-			if ( isset( $assoc_args['resume'] ) ) {
-				$resume_position = (int) get_option( 'frt_last_regenerated', 0 );
+			$resume_position = (int) get_option( 'frt_last_regenerated', PHP_INT_MAX );
+			if ( $resume_position < 1 ) {
+				$resume_position = PHP_INT_MAX;
 			}
-			if ( $resume_position ) {
+			if ( extension_loaded( 'imagick' ) ) {
+				$ids = $wpdb->get_col(
+					$wpdb->prepare(
+						'SELECT ID FROM ' . $wpdb->posts . ' WHERE ID < %d AND post_type = %s AND (post_mime_type LIKE %s OR post_mime_type LIKE %s) ORDER BY ID DESC',
+						$resume_position,
+						'attachment',
+						'%image%',
+						'%pdf%'
+					)
+				);
+			} else {
 				$ids = $wpdb->get_col(
 					$wpdb->prepare(
 						'SELECT ID FROM ' . $wpdb->posts . ' WHERE ID < %d AND post_type = %s AND post_mime_type LIKE %s ORDER BY ID DESC',
@@ -68,18 +74,11 @@ class Force_Regenerate_Thumbnails_CLI {
 						'%image%'
 					)
 				);
-			} else {
-				$ids = $wpdb->get_col(
-					$wpdb->prepare(
-						'SELECT ID FROM ' . $wpdb->posts . ' WHERE post_type = %s AND post_mime_type LIKE %s ORDER BY ID DESC',
-						'attachment',
-						'%image%'
-					)
-				);
 			}
 		}
 
 		if ( empty( $ids ) ) {
+			delete_option( 'frt_last_regenerated' );
 			WP_CLI::warning( __( 'No images found to process.', 'force-regenerate-thumbnails' ) );
 			return;
 		}
@@ -87,24 +86,34 @@ class Force_Regenerate_Thumbnails_CLI {
 		$total    = count( $ids );
 		$success  = 0;
 		$fail     = 0;
+		// translators: %d: number of images.
+		WP_CLI::log( sprintf( __( 'Regenerating thumbnails for %d media items:', 'force-regenerate-thumbnails' ), $total ) );
 		$progress = \WP_CLI\Utils\make_progress_bar( __( 'Regenerating thumbnails', 'force-regenerate-thumbnails' ), $total );
 
 		foreach ( $ids as $id ) {
 			try {
 				// Mimic AJAX handler logic.
+				if ( apply_filters( 'regenerate_thumbs_skip_image', false, $id ) ) {
+					update_option( 'frt_last_regenerated', $id );
+					/* translators: %d: attachment ID number */
+					WP_CLI::log( sprintf( __( 'Skipped: %d', 'force-regenerate-thumbnails' ), (int) $id ) );
+					$progress->tick();
+					continue;
+				}
+
 				$image = get_post( $id );
-				if ( is_null( $image ) || 'attachment' !== $image->post_type || ( 'image/' !== substr( $image->post_mime_type, 0, 6 ) && 'application/pdf' !== $image->post_mime_type ) ) {
+				if ( is_null( $image ) || 'attachment' !== $image->post_type || ( ! str_starts_with( $image->post_mime_type, 'image/' ) && 'application/pdf' !== $image->post_mime_type ) ) {
 					// translators: %d: The attachment ID that was invalid or not found.
-					throw new Exception( sprintf( __( 'Invalid media ID: %d', 'force-regenerate-thumbnails' ), $id ) );
+					throw new Exception( sprintf( __( 'Failed: %d is an invalid media ID.', 'force-regenerate-thumbnails' ), $id ) );
 				}
 				if ( 'application/pdf' === $image->post_mime_type && ! extension_loaded( 'imagick' ) ) {
-					throw new Exception( __( 'The imagick extension is required for PDF files.', 'force-regenerate-thumbnails' ) );
+					throw new Exception( __( 'Failed: The imagick extension is required for PDF files.', 'force-regenerate-thumbnails' ) );
 				}
 				// translators: %d: SVG attachment ID.
 				if ( 'image/svg+xml' === $image->post_mime_type ) {
 					update_option( 'frt_last_regenerated', $id );
 					// translators: %d: SVG attachment ID.
-					WP_CLI::log( sprintf( __( 'Skipped SVG: %d', 'force-regenerate-thumbnails' ), $id ) );
+					WP_CLI::log( sprintf( __( 'Skipped: %d is a SVG', 'force-regenerate-thumbnails' ), $id ) );
 					$progress->tick();
 					continue;
 				}
@@ -112,10 +121,10 @@ class Force_Regenerate_Thumbnails_CLI {
 				$meta           = wp_get_attachment_metadata( $id );
 				$image_fullpath = $force->get_attachment_path( $id, $meta );
 				if ( empty( $image_fullpath ) || false === realpath( $image_fullpath ) ) {
-					throw new Exception( __( 'The original image file cannot be found.', 'force-regenerate-thumbnails' ) );
+					throw new Exception( __( 'The originally uploaded image file cannot be found.', 'force-regenerate-thumbnails' ) );
 				}
 
-				// Delete old thumbnails (mimic plugin logic).
+				// Delete old thumbnails via metadata.
 				$file_info = pathinfo( $image_fullpath );
 				if ( ! empty( $meta['sizes'] ) && is_iterable( $meta['sizes'] ) ) {
 					foreach ( $meta['sizes'] as $size_data ) {
@@ -123,10 +132,65 @@ class Force_Regenerate_Thumbnails_CLI {
 							continue;
 						}
 						$thumb_fullpath = trailingslashit( $file_info['dirname'] ) . wp_basename( $size_data['file'] );
+						if ( apply_filters( 'regenerate_thumbs_weak', false, $thumb_fullpath ) ) {
+							continue;
+						}
 						if ( $thumb_fullpath !== $image_fullpath && is_file( $thumb_fullpath ) ) {
-							@unlink( $thumb_fullpath );
+							do_action( 'regenerate_thumbs_pre_delete', $thumb_fullpath );
+							unlink( $thumb_fullpath );
 							if ( is_file( $thumb_fullpath . '.webp' ) ) {
-								@unlink( $thumb_fullpath . '.webp' );
+								unlink( $thumb_fullpath . '.webp' );
+							}
+							clearstatcache();
+							do_action( 'regenerate_thumbs_post_delete', $thumb_fullpath );
+						}
+					}
+				}
+
+				// Workaround to find thumbnails not in metadata.
+				$file_stem = $force->remove_from_end( $file_info['filename'], '-scaled' ) . '-';
+
+				$files = array();
+				$path  = opendir( $file_info['dirname'] );
+
+				if ( false !== $path ) {
+					$thumb = readdir( $path );
+					while ( false !== $thumb ) {
+						if ( str_starts_with( $thumb, $file_stem ) && str_ends_with( $thumb, $file_info['extension'] ) ) {
+							$files[] = $thumb;
+						}
+						$thumb = readdir( $path );
+					}
+					closedir( $path );
+					sort( $files );
+				}
+
+				foreach ( $files as $thumb ) {
+					$thumb_fullpath = trailingslashit( $file_info['dirname'] ) . $thumb;
+					if ( apply_filters( 'regenerate_thumbs_weak', false, $thumb_fullpath ) ) {
+						continue;
+					}
+
+					$thumb_info  = pathinfo( $thumb_fullpath );
+					$valid_thumb = explode( $file_stem, $thumb_info['filename'] );
+					// This ensures we only target files that start with the original filename, but are also longer than the original.
+					// Otherwise, we might delete the original image, since the while() does not preclude the original.
+					if ( '' === $valid_thumb[0] && ! empty( $valid_thumb[1] ) ) {
+						// Further, if the thumbnail name appendage has 'scaled-' in it, we need to remove it for the dimension check coming up.
+						if ( 0 === strpos( $valid_thumb[1], 'scaled-' ) ) {
+							$valid_thumb[1] = str_replace( 'scaled-', '', $valid_thumb[1] );
+						}
+						$dimension_thumb = explode( 'x', $valid_thumb[1] );
+						if ( 2 === count( $dimension_thumb ) ) {
+							// Thus we only remove files with an appendage like '-150x150' or '-150x150-scaled'.
+							if ( is_numeric( $dimension_thumb[0] ) && is_numeric( $dimension_thumb[1] ) ) {
+								do_action( 'regenerate_thumbs_pre_delete', $thumb_fullpath );
+								unlink( $thumb_fullpath );
+								if ( is_file( $thumb_fullpath . '.webp' ) ) {
+									unlink( $thumb_fullpath . '.webp' );
+								}
+								clearstatcache();
+								do_action( 'regenerate_thumbs_post_delete', $thumb_fullpath );
 							}
 						}
 					}
@@ -137,7 +201,8 @@ class Force_Regenerate_Thumbnails_CLI {
 					$original_path = apply_filters( 'regenerate_thumbs_original_image', wp_get_original_image_path( $id, true ) );
 				}
 				if ( empty( $original_path ) || ! is_file( $original_path ) ) {
-					$regen_path = $image_fullpath;
+					$regen_path    = $image_fullpath;
+					$original_path = $image_fullpath;
 				} elseif ( preg_match( '/e\d{10,}\./', $image_fullpath ) ) {
 					$regen_path = $image_fullpath;
 				} else {
@@ -151,7 +216,12 @@ class Force_Regenerate_Thumbnails_CLI {
 				if ( empty( $metadata ) ) {
 					throw new Exception( __( 'Unknown failure.', 'force-regenerate-thumbnails' ) );
 				}
+
+				if ( ! empty( $meta['original_image'] ) && is_file( $original_path ) && empty( $metadata['original_image'] ) ) {
+					$metadata['original_image'] = $meta['original_image'];
+				}
 				wp_update_attachment_metadata( $id, $metadata );
+				do_action( 'regenerate_thumbs_post_update', $image->ID, $regen_path );
 				update_option( 'frt_last_regenerated', $id );
 				++$success;
 			} catch ( Exception $e ) {
@@ -162,6 +232,7 @@ class Force_Regenerate_Thumbnails_CLI {
 			$progress->tick();
 		}
 		$progress->finish();
+		delete_option( 'frt_last_regenerated' );
 		// translators: 1: Success count, 2: Failure count.
 		WP_CLI::success( sprintf( __( 'Done. Success: %1$d, Failures: %2$d', 'force-regenerate-thumbnails' ), $success, $fail ) );
 	}
